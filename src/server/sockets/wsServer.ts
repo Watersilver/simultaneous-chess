@@ -107,13 +107,13 @@ wsServer.on('connection', (ws, req) => {
 
   // Emitted when response headers are received from the server as part of the handshake.
   // This allows you to read headers from the server, for example 'set-cookie' headers.
-  ws.on('upgrade', res => {})
+  // ws.on('upgrade', res => {})
 
   // Emitted when a message is received.
   // `data` is the message content.
   // `isBinary` specifies whether the message is binary or not.
   ws.on('message', (data, isBinary) => {
-    console.log('received message: ', data, ' | ', "isBinary " + isBinary);
+    console.log('received message: ', data.toString('utf8'), ' | ', "isBinary " + isBinary);
     ws.send('message received. Fuck off.');
   });
 });

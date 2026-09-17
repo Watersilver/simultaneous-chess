@@ -1,5 +1,5 @@
 // Create WebSocket connection.
-const clientSocket = new WebSocket("ws://localhost:8080");
+const clientSocket = new WebSocket("ws://" + window.location.hostname + ":8080");
 
 // Connection opened
 clientSocket.addEventListener("open", (event) => {
