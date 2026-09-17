@@ -1,3 +1,6 @@
+// TODO: I need env vars for frontend
+console.log(import.meta.env.VITE_SOME_KEY)
+
 // Create WebSocket connection.
 const clientSocket =
 window.location.protocol.startsWith('https')
