@@ -1,8 +1,10 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import net from "node:net"
+import server from '../server.js';
 
 const wsServer = new WebSocketServer({
-  port: Number(process.env.WEBSOCKET_PORT)
+  server,
+  path: "/ws"
 });
 
 class SocketsContainer {
