@@ -1,14 +1,8 @@
-// TODO: I need env vars for frontend
-console.log(import.meta.env.VITE_SOME_KEY)
-
 // Create WebSocket connection.
-const clientSocket =
-window.location.protocol.startsWith('https')
-? new WebSocket("wss://" + window.location.hostname + "/ws")
-: new WebSocket("ws://" + window.location.hostname + ":8080/ws");
+const clientSocket = new WebSocket(import.meta.env.VITE_WS_URL + "/" + import.meta.env.VITE_WS_PATH);
 
 // Connection opened
-clientSocket.addEventListener("open", (event) => {
+clientSocket.addEventListener("open", (_event) => {
   clientSocket.send("Hello Server!");
 });
 
@@ -23,8 +17,8 @@ clientSocket.addEventListener('close', event => {
 });
 
 // Connection error
-// clientSocket.addEventListener('error', event => {
-//   console.log("Websocket error");
-// });
+clientSocket.addEventListener('error', event => {
+  console.log("Websocket error");
+});
 
 export default clientSocket

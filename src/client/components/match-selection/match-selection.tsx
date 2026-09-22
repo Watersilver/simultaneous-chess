@@ -2,14 +2,11 @@ import { Button, Center, Container, Divider, Flex, TextInput } from "@mantine/co
 import { useState } from "react";
 import MatchList from "../match-list/match-list";
 import { MatchData } from "../../../both/MatchData";
-import requestRoom from "../../requests/requestRoom";
-import clientSocket from "../../sockets/clientSocket";
 
 export default function MatchSelection() {
   const [value, setValue] = useState('');
 
   const onClick = (data: MatchData) => {
-    clientSocket.send(data.roomName)
   };
 
   return <>
