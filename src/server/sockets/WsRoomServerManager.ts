@@ -1,4 +1,4 @@
-import WebSocket, { Server, WebSocketServer } from "ws";
+import WebSocket, { Server } from "ws";
 import { IncomingMessage } from "node:http";
 
 type ServerOptions = WebSocket.ServerOptions<typeof WebSocket, typeof IncomingMessage>
@@ -23,7 +23,7 @@ type BufferLike =
   | { valueOf(): string }
   | { [Symbol.toPrimitive](hint: string): string };
 
-type ServerSettings<ServerMsg, ClientMsg = {data: WebSocket.RawData, isBinary: boolean}> = {
+type ServerSettings<ServerMsg, ClientMsg> = {
   /** Value is ms. Default is `30000` */
   heartbeatDelay?: number;
   /**
@@ -55,9 +55,10 @@ type ServerSettings<ServerMsg, ClientMsg = {data: WebSocket.RawData, isBinary: b
  */
 export default class WsRoomServerManager<
   OutgoingMessage,
-  WS extends typeof WebSocket,
-  IM extends typeof IncomingMessage,
-  S extends Server<WS, IM>
+  ClientMsg,
+  WS extends typeof WebSocket = typeof WebSocket,
+  IM extends typeof IncomingMessage = typeof IncomingMessage,
+  S extends Server<WS, IM> = Server<WS, IM>
 > {
   private ServerCreator: WsConstructor<WS, IM, S>;
   private server?: S;
@@ -66,7 +67,7 @@ export default class WsRoomServerManager<
     awaitingPong?: boolean;
   }>();
   private hearbeatInterval?: NodeJS.Timeout;
-  private settings?: ServerSettings<OutgoingMessage>;
+  private settings?: ServerSettings<OutgoingMessage, ClientMsg>;
   private rooms: {[room: string]: WebSocket[]} = {};
 
   private clean(ws: InstanceType<WS>) {
@@ -76,7 +77,7 @@ export default class WsRoomServerManager<
 
   constructor(
     ServerCreator: WsConstructor<WS, IM, S>,
-    settings?: ServerSettings<OutgoingMessage>
+    settings?: ServerSettings<OutgoingMessage, ClientMsg>
   ) {
     this.ServerCreator = ServerCreator;
     this.settings = settings;
@@ -84,6 +85,16 @@ export default class WsRoomServerManager<
     if (settings?.startOnInstantiation !== false) {
       this.start();
     }
+  }
+
+  private connectionHandlers: ((ws: InstanceType<WS>, req: InstanceType<IM>) => void)[] = [];
+  addConnectionEventListener(handler: (ws: InstanceType<WS>, req: InstanceType<IM>) => void) {
+    this.connectionHandlers.push(handler);
+    return () => this.removeConnectionEventListener(handler);
+  }
+  removeConnectionEventListener(handler: (ws: InstanceType<WS>, req: InstanceType<IM>) => void) {
+    const i = this.connectionHandlers.indexOf(handler);
+    if (i !== -1) {this.connectionHandlers.splice(i, 1);}
   }
 
   start() {
@@ -101,11 +112,15 @@ export default class WsRoomServerManager<
         ws,
         {}
       );
+      for (const ch of this.connectionHandlers) {
+        ch(ws, req);
+      }
 
       // Emitted when the connection is established.
-      ws.on('open', () => {
-        ws.send('Hi from server!');
-      });
+      // (Doesn't always trigger for some reason)
+      // ws.on('open', () => {
+      //   ws.send('Hi from server!');
+      // });
 
       // Emitted when the connection is closed.
       // `code` is a numeric value indicating the status code explaining why the connection has been closed.
@@ -161,12 +176,14 @@ export default class WsRoomServerManager<
       ws.on('message', (data, isBinary) => {
         const raw = {data, isBinary};
         if (this.settings?.messageHandler) {
-          const parsed = this.settings.deserialise ? this.settings.deserialise(raw) : raw;
-          const result = this.settings.messageHandler(parsed, this);
-          if (result) {
-            switch (result.type) {
-              case "join_room":
-                this.joinRoom(result.name, ws);
+          if (this.settings.deserialise) {
+            const parsed = this.settings.deserialise(raw);
+            const result = this.settings.messageHandler(parsed, this);
+            if (result) {
+              switch (result.type) {
+                case "join_room":
+                  this.joinRoom(result.name, ws);
+              }
             }
           }
         }

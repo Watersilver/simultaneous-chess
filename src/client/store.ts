@@ -3,6 +3,8 @@ import ObservableState from "./utils/ObservableState";
 type ProgramState = {
   id: "Loading"
 } | {
+  id: "Lobby"
+} | {
   id: "CreatingRoom"
 } | {
   id: "InRoom"

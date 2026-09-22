@@ -1,5 +1,5 @@
 import MatchSelection from "./components/match-selection/match-selection";
-import { Container, createTheme, Loader, MantineProvider } from "@mantine/core";
+import { Center, Container, createTheme, Loader, MantineProvider } from "@mantine/core";
 import useObservableState from "./hooks/useObservableState";
 import store from "./store";
 
@@ -9,9 +9,7 @@ function App() {
   const [state] = useObservableState(store.state);
 
   return <MantineProvider theme={theme} defaultColorScheme='dark'>
-    {state.id === "Loading"
-    ? <Loader />
-    : <Container
+    <Container
       style={{
         position: 'absolute',
         left: 0,
@@ -21,8 +19,14 @@ function App() {
       }}
       strategy="grid"
     >
-      <MatchSelection/>
-    </Container>}
+      {
+        state.id === "Loading"
+        ? <Center>
+          <Loader />
+        </Center>
+        : <MatchSelection/>
+      }
+    </Container>
   </MantineProvider>;
 }
 

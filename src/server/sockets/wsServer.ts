@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws';
 import server from '../server.js';
 import WsRoomServerManager from './WsRoomServerManager.js';
+import { ClientMsgSchema, ServerMsg } from '../../both/protocol.js';
 
 
 const wsServer = new WsRoomServerManager(() => {
@@ -9,6 +10,15 @@ const wsServer = new WsRoomServerManager(() => {
     path: "/" + process.env.VITE_WS_PATH
   })
 }, {
+  serialise: (msg: ServerMsg) => JSON.stringify(msg),
+  deserialise: msg => ClientMsgSchema.parse(JSON.parse(msg.data.toString('utf8'))),
+  messageHandler: (msg, _sm) => {
+    console.log(msg);
+  }
+});
+
+wsServer.addConnectionEventListener((ws) => {
+  wsServer.send(ws, {type: 'ass'});
 });
 
 // const wsServer = new WebSocketServer({
