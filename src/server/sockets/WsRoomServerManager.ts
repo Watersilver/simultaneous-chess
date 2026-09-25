@@ -1,5 +1,6 @@
 import WebSocket, { Server } from "ws";
 import { IncomingMessage } from "node:http";
+import { ReadonlyDeep } from "../../both/ReadonlyDeep.js";
 
 type ServerOptions = WebSocket.ServerOptions<typeof WebSocket, typeof IncomingMessage>
 type WsConstructor<WS extends typeof WebSocket, IM extends typeof IncomingMessage, S extends Server<WS, IM>> = (options?: ServerOptions, callback?: () => void) => S
@@ -41,7 +42,7 @@ type ServerSettings<ServerMsg, ClientMsg> = {
    * @param msg parsed message
    * @returns void, or action that should be taken by server
    */
-  messageHandler?: (msg: ClientMsg, sm: WsRoomServerManager<ServerMsg, any, any, any>) =>
+  messageHandler?: (msg: ClientMsg, ws: WebSocket, sm: WsRoomServerManager<ServerMsg, any, any, any>) =>
   | {type: "join_room", name: string}
   | void;
   /**
@@ -49,6 +50,12 @@ type ServerSettings<ServerMsg, ClientMsg> = {
    */
   serialise?: (msg: ServerMsg) => BufferLike;
 }
+
+type SocketState = {
+  room?: string;
+  awaitingPong?: boolean;
+  id: number;
+};
 
 /**
  * Sets up hartbeat and basic rooms
@@ -65,12 +72,25 @@ export default class WsRoomServerManager<
   private wsToState = new WeakMap<InstanceType<WS>, {
     room?: string;
     awaitingPong?: boolean;
+    id: number;
   }>();
   private hearbeatInterval?: NodeJS.Timeout;
   private settings?: ServerSettings<OutgoingMessage, ClientMsg>;
   private rooms: {[room: string]: WebSocket[]} = {};
+  private nextId = 1;
+  private ids: number[] = [];
 
   private clean(ws: InstanceType<WS>) {
+    for (const l of this.cleanListeners) {
+      l(ws);
+    }
+    const s = this.wsToState.get(ws);
+    if (s) {
+      const i = this.ids.indexOf(s.id);
+      if (i !== -1) {
+        this.ids.splice(i, 1);
+      }
+    }
     this.leaveRoom(ws);
     this.wsToState.delete(ws);
   }
@@ -97,6 +117,16 @@ export default class WsRoomServerManager<
     if (i !== -1) {this.connectionHandlers.splice(i, 1);}
   }
 
+  private cleanListeners: ((ws: InstanceType<WS>) => void)[] = [];
+  addCleanEventListener(handler: (ws: InstanceType<WS>) => void) {
+    this.cleanListeners.push(handler);
+    return () => this.removeCleanEventListener(handler);
+  }
+  removeCleanEventListener(handler: (ws: InstanceType<WS>) => void) {
+    const i = this.cleanListeners.indexOf(handler);
+    if (i !== -1) {this.cleanListeners.splice(i, 1);}
+  }
+
   start() {
     if (this.server) {
       throw Error("Server is already running");
@@ -110,8 +140,12 @@ export default class WsRoomServerManager<
       // console.log("ip: ", req.socket.remoteAddress);
       this.wsToState.set(
         ws,
-        {}
+        {
+          id: this.nextId
+        }
       );
+      this.ids.push(this.nextId);
+      this.nextId++;
       for (const ch of this.connectionHandlers) {
         ch(ws, req);
       }
@@ -178,7 +212,7 @@ export default class WsRoomServerManager<
         if (this.settings?.messageHandler) {
           if (this.settings.deserialise) {
             const parsed = this.settings.deserialise(raw);
-            const result = this.settings.messageHandler(parsed, this);
+            const result = this.settings.messageHandler(parsed, ws, this);
             if (result) {
               switch (result.type) {
                 case "join_room":
@@ -276,6 +310,10 @@ export default class WsRoomServerManager<
 
   joinRoom(name: string, ws: InstanceType<WS>) {
     this.leaveRoom(ws);
+    const state = this.wsToState.get(ws);
+    if (state) {
+      state.room = name;
+    }
     if (!this.rooms[name]) {
       this.rooms[name] = [];
     }
@@ -296,12 +334,13 @@ export default class WsRoomServerManager<
             }
           }
         }
+        delete res.room;
       }
     }
   }
 
-  getRoomOfSocket(ws: InstanceType<WS>) {
-    return this.wsToState.get(ws)?.room ?? null;
+  getSocketState(ws: InstanceType<WS>): ReadonlyDeep<SocketState> | null {
+    return this.wsToState.get(ws) ?? null;
   }
 
   getSocketsInRoom(room: string) {

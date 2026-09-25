@@ -36,15 +36,13 @@ export default function useAsyncState<T>(
   const firstRender = useRef(false);
   /** Symbol description is info on why a request with a symbol mismatch failed */
   const currentReqId = useRef(Symbol("Initial invalid request"));
-  const updaterRef = useRef(updater);
-  updaterRef.current = updater;
 
   const updateState = useCallback(() => {
     setState(initialState);
     const reqId = Symbol("Other request in progress");
     currentReqId.current = reqId;
 
-    updaterRef.current(progress => setState(prev => {
+    updater(progress => setState(prev => {
       if (prev.status === "loading") {
         return {...prev, progress};
       }
@@ -64,7 +62,7 @@ export default function useAsyncState<T>(
     });
 
     return () => currentReqId.current = Symbol("Component has unmounted");
-  }, []);
+  }, [updater]);
 
   useEffect(() => {
     firstRender.current = true;

@@ -1,7 +1,34 @@
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import server from '../server.js';
 import WsRoomServerManager from './WsRoomServerManager.js';
 import { ClientMsgSchema, ServerMsg } from '../../both/protocol.js';
+import DataAccess from '../DataAccess.js';
+
+
+// healpers
+const leaveRoom = (ws: WebSocket, sm: WsRoomServerManager<any, any, any>) => {
+  // console.log('leaving room')
+  const state = sm.getSocketState(ws);
+  if (state !== null && state.room !== undefined) {
+    // console.log('socket room found')
+    const room = DataAccess.getRoom(state.room);
+    if (room) {
+      // console.log('room data found', room)
+      if (room.blackId === state.id) {
+        DataAccess.setRoomProps(state.room, ['blackId', undefined]);
+        // console.log('removed black id ', DataAccess.getRoom(state.room));
+      };
+      if (room.whiteId === state.id) {
+        DataAccess.setRoomProps(state.room, ['whiteId', undefined]);
+        // console.log('removed white id ', DataAccess.getRoom(state.room));
+      }
+      DataAccess.setRoomProps(state.room, ['people', room.people - 1]);
+      // console.log('removed one person ', DataAccess.getRoom(state.room));
+    }
+  }
+  sm.leaveRoom(ws);
+  // console.log('Left room as socket')
+}
 
 
 const wsServer = new WsRoomServerManager(() => {
@@ -12,13 +39,79 @@ const wsServer = new WsRoomServerManager(() => {
 }, {
   serialise: (msg: ServerMsg) => JSON.stringify(msg),
   deserialise: msg => ClientMsgSchema.parse(JSON.parse(msg.data.toString('utf8'))),
-  messageHandler: (msg, _sm) => {
-    console.log(msg);
+  messageHandler: (msg, ws, sm) => {
+    switch (msg.type) {
+      case 'join-room': {
+        // console.log('joining room');
+        leaveRoom(ws, sm);
+        // console.log('left prev room');
+        const room = DataAccess.getRoom(msg.name);
+        const wsData = sm.getSocketState(ws);
+        if (room && wsData) {
+          // console.log('room data and socket data found', room);
+          DataAccess.setRoomProps(room.name, ['people', room.people + 1]);
+          // console.log('Added a person', DataAccess.getRoom(msg.name));
+          let colour: 'black' | 'white' | undefined;
+          if (msg.colour) {
+            // console.log('requesting colour: ' + msg.colour);
+            switch (msg.colour) {
+              case 'black':
+                if (room.blackId === undefined) {
+                  colour = 'black';
+                  DataAccess.setRoomProps(room.name, ['blackId', wsData.id]);
+                  // console.log('added black', DataAccess.getRoom(msg.name));
+                } else if (room.whiteId === undefined) {
+                  colour = 'white';
+                  DataAccess.setRoomProps(room.name, ['whiteId', wsData.id]);
+                  // console.log('added white', DataAccess.getRoom(msg.name));
+                }
+                break;
+              case 'white':
+                if (room.whiteId === undefined) {
+                  colour = 'white';
+                  DataAccess.setRoomProps(room.name, ['whiteId', wsData.id]);
+                  // console.log('added white', DataAccess.getRoom(msg.name));
+                } else if (room.blackId === undefined) {
+                  colour = 'black';
+                  DataAccess.setRoomProps(room.name, ['blackId', wsData.id]);
+                  // console.log('added black', DataAccess.getRoom(msg.name));
+                }
+                break;
+            }
+          }
+          sm.joinRoom(room.name, ws);
+          // console.log('joined room as socket');
+          sm.send(ws, {
+            type: 'join-room-success',
+            roomName: room.name,
+            colour
+          });
+        } else {
+          sm.send(ws, {
+            type: 'join-room-fail',
+            roomName: msg.name,
+            reason: 'Room doesn\'t exist'
+          });
+        }
+      }
+      break;
+      case 'leave-room':
+        const s = sm.getSocketState(ws);
+        leaveRoom(ws, sm);
+        sm.send(ws, {
+          type: 'leave-room-response',
+          roomName: s?.room
+        });
+      break;
+    }
   }
 });
 
-wsServer.addConnectionEventListener((ws) => {
-  wsServer.send(ws, {type: 'ass'});
+// wsServer.addConnectionEventListener((ws) => {
+// });
+
+wsServer.addCleanEventListener(ws => {
+  leaveRoom(ws, wsServer);
 });
 
 // const wsServer = new WebSocketServer({

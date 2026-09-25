@@ -3,7 +3,7 @@ type Settings<IncomingMsg extends string | Blob, ParsedMsg, OutgoingMsg> = {
   serialise: (msg: OutgoingMsg) => Promise<string> | string;
 };
 
-export default class WsCientManager<IncomingMsg extends string | Blob, ParsedMsg, OutgoingMsg> {
+export default class WsClientManager<IncomingMsg extends string | Blob, ParsedMsg, OutgoingMsg> {
   private socket: WebSocket;
   private settings: Settings<IncomingMsg, ParsedMsg, OutgoingMsg>;
   constructor(
@@ -14,8 +14,24 @@ export default class WsCientManager<IncomingMsg extends string | Blob, ParsedMsg
     this.settings = settings;
   }
 
+  private preSendMiddleware: ((msg: OutgoingMsg) => void)[] = [];
+  addPreSendMiddleware(mw: (msg: OutgoingMsg) => void) {
+    this.preSendMiddleware.push(mw);
+    return () => this.removePreSendMiddleware(mw);
+  }
+  removePreSendMiddleware(mw: (msg: OutgoingMsg) => void) {
+    const i = this.preSendMiddleware.indexOf(mw);
+    if (i !== -1) {
+      this.removePreSendMiddleware(mw);
+    }
+  }
+
   async send(msg: OutgoingMsg) {
-    this.socket.send(await this.settings.serialise(msg));
+    for (const psm of this.preSendMiddleware) {
+      psm(msg);
+    }
+    const parsed = await this.settings.serialise(msg);
+    this.socket.send(parsed);
   }
 
   private listeners: {
@@ -64,12 +80,7 @@ export default class WsCientManager<IncomingMsg extends string | Blob, ParsedMsg
     if (i !== -1) {
       const [h] = this.listeners[type].splice(i);
       if (h) {
-        switch (type) {
-          case 'open': this.socket.removeEventListener(type, h); break;
-          case 'close': this.socket.removeEventListener(type, h); break;
-          case 'error': this.socket.removeEventListener(type, h); break;
-          case 'message': this.socket.removeEventListener(type, h); break;
-        }
+        this.socket.removeEventListener(type, h);
       }
     }
   }
