@@ -13,17 +13,27 @@ const leaveRoom = (ws: WebSocket, sm: WsRoomServerManager<any, any, any>) => {
     // console.log('socket room found')
     const room = DataAccess.getRoom(state.room);
     if (room) {
+      let plStChanged = false;
       // console.log('room data found', room)
       if (room.blackId === state.id) {
+        plStChanged = true;
         DataAccess.setRoomProps(state.room, ['blackId', undefined]);
         // console.log('removed black id ', DataAccess.getRoom(state.room));
       };
       if (room.whiteId === state.id) {
+        plStChanged = true;
         DataAccess.setRoomProps(state.room, ['whiteId', undefined]);
         // console.log('removed white id ', DataAccess.getRoom(state.room));
       }
       DataAccess.setRoomProps(state.room, ['people', room.people - 1]);
       // console.log('removed one person ', DataAccess.getRoom(state.room));
+      if (plStChanged) {
+        sm.send(sm.getSocketsInRoom(room.name)?.filter(w => w !== ws), {
+          type: 'players-status',
+          w: DataAccess.getRoom(state.room)?.whiteId !== undefined,
+          b: DataAccess.getRoom(state.room)?.blackId !== undefined
+        });
+      }
     }
   }
   sm.leaveRoom(ws);
@@ -60,6 +70,57 @@ const wsServer = new WsRoomServerManager(() => {
         }
         break;
       }
+      case 'request-play': {
+        const wsData = sm.getSocketState(ws);
+        if (wsData?.room) {
+          const room = DataAccess.getRoom(wsData.room);
+          if (room) {
+            let colour: 'black' | 'white' | undefined;
+            switch (msg.colour) {
+              case 'black':
+                if (room.blackId === undefined) {
+                  colour = 'black';
+                  DataAccess.setRoomProps(room.name, ['blackId', wsData.id]);
+                  // console.log('added black', DataAccess.getRoom(msg.name));
+                } else if (room.whiteId === undefined) {
+                  colour = 'white';
+                  DataAccess.setRoomProps(room.name, ['whiteId', wsData.id]);
+                  // console.log('added white', DataAccess.getRoom(msg.name));
+                }
+                break;
+              case 'white':
+                if (room.whiteId === undefined) {
+                  colour = 'white';
+                  DataAccess.setRoomProps(room.name, ['whiteId', wsData.id]);
+                  // console.log('added white', DataAccess.getRoom(msg.name));
+                } else if (room.blackId === undefined) {
+                  colour = 'black';
+                  DataAccess.setRoomProps(room.name, ['blackId', wsData.id]);
+                  // console.log('added black', DataAccess.getRoom(msg.name));
+                }
+                break;
+            }
+            if (colour) {
+              sm.send(ws, {
+                type: 'request-play-success',
+                colour
+              });
+              // Inform room spectators that a player has joined
+              sm.send(sm.getSocketsInRoom(room.name)?.filter(w => w !== ws), {
+                type: 'players-status',
+                w: (room.whiteId !== undefined) || undefined,
+                b: (room.blackId !== undefined) || undefined
+              });
+            } else {
+              sm.send(ws, {
+                type: 'request-play-fail',
+                reason: 'No room for another player'
+              });
+            }
+          }
+        }
+      }
+      break;
       case 'join-room': {
         // console.log('joining room');
         leaveRoom(ws, sm);

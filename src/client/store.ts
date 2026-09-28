@@ -1,3 +1,4 @@
+import { Turn } from "../both/Notation";
 import ObservableState from "./utils/ObservableState";
 
 type ProgramState = {
@@ -27,7 +28,8 @@ const store = {
   socketConnData: new ObservableState({
     connectedToRoom: '',
     colour: null as 'white' | 'black' | null
-  })
+  }),
+  history: new ObservableState<(Turn & {description?: string})[]>([])
 }
 
 export default store;

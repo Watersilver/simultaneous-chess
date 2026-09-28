@@ -1,4 +1,4 @@
-import { AppShell, Burger, Button, Group, Loader, Modal, Title, Text, Stack, Center, Box, SimpleGrid } from '@mantine/core';
+import { AppShell, Burger, Button, Group, Loader, Modal, Title, Text, Stack, Center, Box, SimpleGrid, ScrollArea } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import useObservableState from '../../hooks/useObservableState';
 import store from '../../store';
@@ -6,6 +6,8 @@ import clientSocket from '../../sockets/clientSocket';
 import { useEffect, useState } from 'react';
 import useMessageListener from '../../hooks/useMessageListener';
 import { notifications } from '@mantine/notifications';
+import MatchHistory from '../match-history/match-history';
+import Chessboard from '../chessboard/chessboard';
 
 function RoleDisplay({
   onJoinRequest,
@@ -16,7 +18,6 @@ function RoleDisplay({
   onJoinRequest?: () => void;
   requestingPlay?: boolean;
 }) {
-  joinable = true;
   const [connData] = useObservableState(store.socketConnData);
 
   return <SimpleGrid style={{
@@ -27,8 +28,8 @@ function RoleDisplay({
       ? <Loader size='xs' />
       : <Text
         fw={700}
-        fs={connData.colour ? undefined : "italic"}
-        c={connData.colour ? undefined : 'dimmed'}
+        fs={connData.colour || joinable ? undefined : "italic"}
+        c={connData.colour || joinable ? undefined : 'dimmed'}
         size='xl'
         style={{
           textShadow: connData.colour === 'black'
@@ -44,16 +45,11 @@ function RoleDisplay({
           ? "Black"
           : connData.colour === 'white'
           ? "White"
-          : <>
-            Spectator
-            {
-              joinable
-              ? <Button ml='md' onClick={onJoinRequest}>
-                Join
-              </Button>
-              : null
-            }
-          </>
+          : joinable
+          ? <Button ml='md' onClick={onJoinRequest}>
+            Join
+          </Button>
+          : "Spectator"
         }
       </Text>
     }
@@ -129,8 +125,8 @@ export default function InRoom({
         case 'request-play-fail':
           setRequestingPlay(false);
           notifications.show({
-            message: "Couldn't join the game",
-            c: 'red'
+            message: msg.reason,
+            color: 'red'
           });
           break;
         case 'request-play-success':
@@ -208,9 +204,25 @@ export default function InRoom({
           </Group>
         </AppShell.Header>
 
-        <AppShell.Navbar>History</AppShell.Navbar>
+        <AppShell.Navbar>
+          {/* <ScrollArea>
+            <MatchHistory />
+          </ScrollArea> */}
+          <Box
+            style={{
+              overflowY: 'auto'
+            }}
+          >
+            <MatchHistory />
+          </Box>
+        </AppShell.Navbar>
 
-        <AppShell.Main>Chessboard</AppShell.Main>
+        <AppShell.Main style={{
+          position: 'absolute',
+          top:0, left:0, right:0, bottom:0
+        }}>
+          <Chessboard data={[] as any} />
+        </AppShell.Main>
       </AppShell>
       : <Center>
         <Loader />
