@@ -20,8 +20,12 @@ export default function useMessageListener<
     if (onMsg) wsClient.addEventListener('message', onMsg);
 
     return () => {
-      if (onPreSend) wsClient.removePreSendMiddleware(onPreSend);
-      if (onMsg) wsClient.removeEventListener('message', onMsg);
+      if (onPreSend) {
+        wsClient.removePreSendMiddleware(onPreSend);
+      }
+      if (onMsg) {
+        wsClient.removeEventListener('message', onMsg);
+      }
     }
   }, settings.triggers ?? []);
 }

@@ -1,6 +1,7 @@
 import WebSocket, { Server } from "ws";
 import { IncomingMessage } from "node:http";
 import { ReadonlyDeep } from "../../both/ReadonlyDeep.js";
+import isRecord from "../../client/utils/isRecord.js";
 
 type ServerOptions = WebSocket.ServerOptions<typeof WebSocket, typeof IncomingMessage>
 type WsConstructor<WS extends typeof WebSocket, IM extends typeof IncomingMessage, S extends Server<WS, IM>> = (options?: ServerOptions, callback?: () => void) => S

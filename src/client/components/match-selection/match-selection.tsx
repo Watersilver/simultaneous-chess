@@ -4,6 +4,7 @@ import MatchList from "../match-list/match-list";
 import useMessageListener from "../../hooks/useMessageListener";
 import clientSocket from "../../sockets/clientSocket";
 import store from "../../store";
+import { notifications } from "@mantine/notifications";
 
 type RoomData = {
   name: string;
@@ -12,21 +13,26 @@ type RoomData = {
 export default function MatchSelection() {
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
 
   useMessageListener(clientSocket, {
     onMessage: msg => {
       switch (msg.type) {
         case 'join-room-fail':
           setLoading(false);
-          setErrorMsg(msg.reason);
+          notifications.show({
+            message: msg.reason,
+            color: 'red'
+          });
           break;
         case 'join-room-success':
           setLoading(false);
           store.state.set({
             id: 'InRoom',
             name: msg.roomName
-          })
+          });
+          notifications.show({
+            message: "You joined the room as spectator"
+          });
           break;
       }
     }
@@ -51,6 +57,7 @@ export default function MatchSelection() {
                 onChange={(event) => setValue(event.currentTarget.value)}
               />
               <Button
+                disabled={!value}
                 onClick={() => onSelectMatch({name: value})}
               >
                 Enter
@@ -59,13 +66,6 @@ export default function MatchSelection() {
             <Divider my="sm" />
             <MatchList search={value} onClick={onSelectMatch} />
           </Container>
-        }
-        {
-          errorMsg === ""
-          ? null
-          : <Notification color="red" title="Connection failed" onClose={() => setErrorMsg('')}>
-            {errorMsg}
-          </Notification>
         }
       </Stack>
     </Center>

@@ -18,7 +18,7 @@ export default class DataAccess {
   private static rooms: RoomData[] = [];
 
   static getRooms(includePrivate?: boolean): ReadonlyDeep<typeof DataAccess.rooms> {
-    if (!includePrivate) return DataAccess.rooms;
+    if (includePrivate) return DataAccess.rooms;
     return DataAccess.rooms.filter(r => !r.private);
   }
 

@@ -4,6 +4,7 @@ import useObservableState from "./hooks/useObservableState";
 import store from "./store";
 import RoomCreator from "./components/room-creator/room-creator";
 import InRoom from "./components/in-room/in-room";
+import { Notifications } from "@mantine/notifications";
 
 const theme = createTheme({});
 
@@ -11,6 +12,7 @@ function App() {
   const [state] = useObservableState(store.state);
 
   return <MantineProvider theme={theme} defaultColorScheme='dark'>
+    <Notifications />
     {
       state.id === "InRoom"
       ? <InRoom name={state.name} />

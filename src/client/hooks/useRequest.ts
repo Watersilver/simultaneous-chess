@@ -28,13 +28,13 @@ export default function useRequest<I, V extends Array<I>, T>(
 
     request(...init).then(r => {
       if (currentReqId.current !== reqId) {
-        console.log('Async state outdated update ingnored:', currentReqId.current.description);
+        console.log('Request outdated update ingnored:', currentReqId.current.description);
         return;
       }
       setState({status: 'ok', data: r});
     }).catch(e => {
       if (currentReqId.current !== reqId) {
-        console.log('Async state outdated error ingnored:', currentReqId.current.description);
+        console.log('Request outdated error ingnored:', currentReqId.current.description);
         return;
       }
       setState({status: 'error', error: e});

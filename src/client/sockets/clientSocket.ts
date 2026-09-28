@@ -1,3 +1,4 @@
+import { notifications } from "@mantine/notifications";
 import { ClientMsg, ServerMsgSchema } from "../../both/protocol";
 import store from "../store";
 import WsClientManager from "./WsClientManager";
@@ -61,3 +62,15 @@ clientSocket.addEventListener('open', async () => {
 // });
 
 export default clientSocket
+
+const ass = (msg: any) => {
+  switch (msg.type) {
+    case 'join-room-fail':
+      notifications.show({message: 'test me'})
+      break;
+  }
+}
+
+clientSocket.addEventListener('message', ass)
+clientSocket.removeEventListener('message', ass)
+clientSocket.addEventListener('message', ass)

@@ -20,6 +20,17 @@ export const ServerMsgSchema = z.discriminatedUnion('type', [
     colour: z.optional(z.enum(['black', 'white']))
   }),
   z.object({
+    type: z.literal('players-status'),
+    /** Whether white player exists */
+    w: z.optional(z.boolean()),
+    /** Whether black player exists */
+    b: z.optional(z.boolean())
+  }),
+  z.object({
+    type: z.literal('players-status-fail'),
+    reason: z.enum(['Not in room', 'Dunno'])
+  }),
+  z.object({
     type: z.literal('leave-room-response'),
     /** `undefined` if there was no room to leave */
     roomName: z.optional(z.string())
@@ -39,6 +50,9 @@ export type ServerMsg = z.infer<typeof ServerMsgSchema>;
 export const ClientMsgSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('request-rooms')
+  }),
+  z.object({
+    type: z.literal('request-players-status')
   }),
   z.object({
     type: z.literal('join-room'),

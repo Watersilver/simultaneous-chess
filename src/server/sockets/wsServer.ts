@@ -41,6 +41,25 @@ const wsServer = new WsRoomServerManager(() => {
   deserialise: msg => ClientMsgSchema.parse(JSON.parse(msg.data.toString('utf8'))),
   messageHandler: (msg, ws, sm) => {
     switch (msg.type) {
+      case 'request-players-status': {
+        const s = sm.getSocketState(ws);
+        if (s?.room) {
+          const room = DataAccess.getRoom(s.room);
+          if (room) {
+            sm.send(ws, {
+              type: 'players-status',
+              w: (room.whiteId !== undefined) || undefined,
+              b: (room.blackId !== undefined) || undefined
+            });
+          } else {
+            sm.send(ws, {
+              type: 'players-status-fail',
+              reason: 'Not in room'
+            });
+          }
+        }
+        break;
+      }
       case 'join-room': {
         // console.log('joining room');
         leaveRoom(ws, sm);
@@ -86,6 +105,14 @@ const wsServer = new WsRoomServerManager(() => {
             roomName: room.name,
             colour
           });
+          // Inform room spectators that a player has joined
+          if (colour !== undefined) {
+            sm.send(sm.getSocketsInRoom(room.name)?.filter(w => w !== ws), {
+              type: 'players-status',
+              w: (room.whiteId !== undefined || colour === 'white') || undefined,
+              b: (room.blackId !== undefined || colour === 'black') || undefined
+            });
+          }
         } else {
           sm.send(ws, {
             type: 'join-room-fail',

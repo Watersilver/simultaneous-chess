@@ -35,13 +35,14 @@ export default class WsClientManager<IncomingMsg extends string | Blob, ParsedMs
   }
 
   private listeners: {
-    open: (((event?: any) => void) & {id: Function})[];
-    close: (((event?: any) => void) & {id: Function})[];
-    error: (((event?: any) => void) & {id: Function})[];
-    message: (((event?: any) => void) & {id: Function})[];
+    open: (((event?: any) => void))[];
+    close: (((event?: any) => void))[];
+    error: (((event?: any) => void))[];
+    message: (((event?: any) => void))[];
   } = {
     open: [], close: [], error: [], message: []
   };
+  private msgListToWrapper: WeakMap<(msg: ParsedMsg) => void, (event: any) => Promise<any>> = new WeakMap();
 
   addEventListener(type: "open", handler: () => void): void;
   addEventListener(type: "close", handler: (event: CloseEvent) => void): void;
@@ -51,21 +52,17 @@ export default class WsClientManager<IncomingMsg extends string | Blob, ParsedMs
     this.listeners[type].push(handler);
     switch (type) {
       case 'open':
-        const oh: (() => void) & {id?: Function} = () => handler();
-        oh.id = handler;
-        this.socket.addEventListener(type, oh);
+        this.socket.addEventListener(type, handler);
         return () => this.removeEventListener(type, handler);
       case 'close':
         this.socket.addEventListener(type, handler);
         return () => this.removeEventListener(type, handler);
       case 'error':
-        const eh: (() => void) & {id?: Function} = () => handler();
-        eh.id = handler;
-        this.socket.addEventListener(type, eh);
+        this.socket.addEventListener(type, handler);
         return () => this.removeEventListener(type, handler);
       case 'message':
-        const mh: ((e: any) => any) & {id?: Function} = async (event: MessageEvent) => handler(await this.settings.deserialise(event.data));
-        mh.id = handler;
+        const mh = this.msgListToWrapper.get(handler) ?? (async (event: MessageEvent) => handler(await this.settings.deserialise(event.data)));
+        this.msgListToWrapper.set(handler, mh);
         this.socket.addEventListener(type, mh);
         return () => this.removeEventListener(type, handler);
     }
@@ -76,12 +73,13 @@ export default class WsClientManager<IncomingMsg extends string | Blob, ParsedMs
   removeEventListener(type: "error", handler: () => void): void;
   removeEventListener(type: "message", handler: (msg: ParsedMsg) => void): void;
   removeEventListener(type: "open" | "close" | "error" | "message", handler: (event?: any) => void) {
-    const i = this.listeners[type].findIndex(h => h === handler || h.id === handler);
+    const h = this.msgListToWrapper.get(handler);
+    if (h) {
+      this.socket.removeEventListener(type, h);
+    }
+    const i = this.listeners[type].indexOf(handler);
     if (i !== -1) {
-      const [h] = this.listeners[type].splice(i);
-      if (h) {
-        this.socket.removeEventListener(type, h);
-      }
+      this.listeners[type].splice(i, 1);
     }
   }
 }
