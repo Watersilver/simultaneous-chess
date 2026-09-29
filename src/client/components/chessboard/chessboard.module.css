@@ -1,0 +1,20 @@
+.square {
+  transition: 0.05s;
+  &:hover, &.selected {
+    /* backdrop-filter: contrast(200%); */
+    /* backdrop-filter: saturate(200%); */
+    outline: thick double #32a1ce;
+    background-color: #32a2ce42;
+    cursor: pointer;
+    animation: erty 0.66s ease-in-out infinite alternate both;
+  }
+}
+
+@keyframes erty {
+  from {
+    transform: scale(1, 1);
+  }
+  to {
+    transform: scale(1.05, 1.05);
+  }
+}
