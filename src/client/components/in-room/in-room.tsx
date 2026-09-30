@@ -72,11 +72,24 @@ export default function InRoom({
   const [requestingPlay, setRequestingPlay] = useState(false);
 
   useEffect(() => {
-    console.log("requesting players status");
-    setAwaitingRoomStatus(true);
-    clientSocket.send({
-      type: 'request-players-status'
-    });
+    const reqPlSt = () => {
+      console.log("requesting players status");
+      setAwaitingRoomStatus(true);
+      clientSocket.send({
+        type: 'request-players-status'
+      });
+    }
+    reqPlSt();
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey) {
+        reqPlSt();
+      }
+    }
+
+    addEventListener('keydown', handler);
+
+    return () => removeEventListener('keydown', handler);
   }, []);
 
   // Join room if not joined yet
