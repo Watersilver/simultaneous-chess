@@ -246,7 +246,7 @@ export default function InRoom({
           top:0, left:0, right:0, bottom:0,
           overflow: 'hidden'
         }}>
-          <Chessboard data={[] as any} />
+          <Chessboard />
         </AppShell.Main>
       </AppShell>
       : <Center>

@@ -1,5 +1,5 @@
 import { Box, Image } from "@mantine/core";
-import { PieceType, Position, SquareCoordinates } from "../../../both/Notation";
+import { PieceType, ChessPosition, SquareCoordinates } from "../../../both/Notation";
 import useResizeObserver from "../../hooks/useResizeObserver";
 import { useEffect, useState } from "react";
 import styles from "./chessboard.module.css"
@@ -29,77 +29,28 @@ const pieceImgs: {[type in PieceType]: {[colour in 'b' | 'w']: string}} = {
 }
 
 const squares: SquareCoordinates[] = [
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8',
-  'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8',
-  'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8',
-  'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8',
-  'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8',
-  'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8',
-  'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8',
-  'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8',
-];
-
-type PieceState = {
-  coords?: SquareCoordinates;
-  type: PieceType;
-  colour: "w" | "b";
-  captured?: boolean;
-  promoted?: boolean;
-}
-
-const initialPiecesState: [
-  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState,
-  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState,
-  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState,
-  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState
-] = [
-  // White Pieces
-  { type: "K", colour: "w" },
-  { type: "Q", colour: "w" },
-  { type: "R", colour: "w" },
-  { type: "R", colour: "w" },
-  { type: "B", colour: "w" },
-  { type: "B", colour: "w" },
-  { type: "N", colour: "w" },
-  { type: "N", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-  { type: "", colour: "w" },
-
-  // Black Pieces
-  { type: "K", colour: "b" },
-  { type: "Q", colour: "b" },
-  { type: "R", colour: "b" },
-  { type: "R", colour: "b" },
-  { type: "B", colour: "b" },
-  { type: "B", colour: "b" },
-  { type: "N", colour: "b" },
-  { type: "N", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
-  { type: "", colour: "b" },
+  'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8',
+  'a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7',
+  'a6', 'b6', 'c6', 'd6', 'e6', 'f6', 'g6', 'h6',
+  'a5', 'b5', 'c5', 'd5', 'e5', 'f5', 'g5', 'h5',
+  'a4', 'b4', 'c4', 'd4', 'e4', 'f4', 'g4', 'h4',
+  'a3', 'b3', 'c3', 'd3', 'e3', 'f3', 'g3', 'h3',
+  'a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2',
+  'a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1'
 ];
 
 function Piece({
   type,
   colour,
   size,
-  coords
+  coords,
+  repositionTrigger
 }: {
   type: PieceType;
   colour: 'w' | 'b';
   size: number;
   coords?: SquareCoordinates;
+  repositionTrigger: unknown;
 }) {
   const [x, setX] = useState(0);
   const [y, setY] = useState(0);
@@ -123,7 +74,7 @@ function Piece({
 
     setX(0);
     setY(0);
-  }, [coords, size]);
+  }, [coords, size, repositionTrigger]);
 
   return <Image
     style={{
@@ -139,11 +90,8 @@ function Piece({
   />
 }
 
-export default function Chessboard({
-  data
-}: {
-  data: Position
-}) {
+export default function Chessboard() {
+  const [pieces] = useObservableState(store.chessPos);
   const [connData] = useObservableState(store.socketConnData);
   const role = connData.colour ?? "spectator";
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -152,7 +100,17 @@ export default function Chessboard({
   const boardSize = min * (1 - 1/9.05);
   const pieceSize = boardSize / 8;
 
-  const [pieces, setPieces] = useState(initialPiecesState);
+  const perspectiveSquares = [...squares];
+  if (role === 'black') {
+    perspectiveSquares.reverse();
+  }
+
+  const [selected, setSelected] = useState<SquareCoordinates>();
+
+  // Reset board
+  useEffect(() => {
+    store.chessPos.reset();
+  }, []);
 
   return <Box
     style={{
@@ -172,6 +130,7 @@ export default function Chessboard({
           coords={piece.coords}
           type={piece.type}
           colour={piece.colour}
+          repositionTrigger={role !== 'black'}
         />
       })
     }
@@ -196,23 +155,44 @@ export default function Chessboard({
         }}
       >
         {
-          squares.map(square => {
+          perspectiveSquares.map(square => {
             return <Box
               key={square}
               id={square}
-              className={styles.square + (role === 'spectator' ? " " + styles.player : "")}
+              className={
+                styles.square
+                + (role === 'spectator' ? "" : (" " + styles.player))
+                + (selected !== square ? "" : (" " + styles.selected))
+              }
               style={{
                 // outline: 'solid blue 1px'
               }}
               onMouseEnter={() => {
                 if (role === 'spectator') return;
-                setPieces(p => {
-                  const newP: typeof p = [...p];
-                  newP[0].coords = square;
-                  return newP;
-                })
               }}
-            />
+              onClick={() => {
+                if (role === 'spectator') return;
+
+                if (!selected) {
+                  if (pieces.some(p => p.coords === square)) {
+                    console.log('selected', square);
+                    setSelected(square);
+                  } else {
+                    setSelected(undefined);
+                  }
+                } else {
+                  console.log('moving', selected, 'to', square);
+                  const pos = [...store.chessPos.get()];
+                  pos.forEach(p => {
+                    if (p.coords === selected) {
+                      p.coords = square;
+                    }
+                  });
+                  setSelected(undefined);
+                }
+              }}
+            >
+            </Box>
           })
         }
       </Box>

@@ -29,17 +29,17 @@ export type Turn = {
   comment?: string;
 };
 
-type SquareData = {
-  piece?: PieceType
+export type PieceState = {
+  coords?: SquareCoordinates;
+  type: PieceType;
+  colour: "w" | "b";
+  captured?: boolean;
+  promoted?: boolean;
 }
 
-export type Position = [
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData,
-  SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData, SquareData
+export type ChessPosition = [
+  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState,
+  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState,
+  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState,
+  PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState, PieceState
 ];

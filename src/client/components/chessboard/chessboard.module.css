@@ -1,12 +1,17 @@
 .square.player {
   transition: 0.05s;
-  &:hover, &.selected {
+  &.selected, &.selected:hover {
     /* backdrop-filter: contrast(200%); */
     /* backdrop-filter: saturate(200%); */
     outline: thick double #32a1ce;
     background-color: #32a2ce42;
     cursor: pointer;
     animation: erty 0.66s ease-in-out infinite alternate both;
+  }
+  &:hover {
+    outline: dashed #32a1ce;
+    background-color: #32a2ce17;
+    cursor: pointer;
   }
 }
 
