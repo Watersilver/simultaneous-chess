@@ -12,7 +12,7 @@ const clientSocket = new WsClientManager(() => new WebSocket(import.meta.env.VIT
 clientSocket.addEventListener('message', msg => {
   switch (msg.type) {
     case 'join-room-success':
-      console.log("Joined room! Setting connection data.");
+      // console.log("Joined room! Setting connection data.");
       store.socketConnData.set({
         connectedToRoom: msg.roomName,
         colour: msg.colour ?? null

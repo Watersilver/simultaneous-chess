@@ -62,6 +62,7 @@ export default function InRoom({
   name: string
 }) {
   const [connData] = useObservableState(store.socketConnData);
+  const isConnectedToRoom = connData.connectedToRoom === name;
 
   const [opened, { toggle }] = useDisclosure();
   const [leaveDlgOpened, { open: leaveDlgOpen, close: leaveDlgClose }] = useDisclosure(false);
@@ -72,8 +73,9 @@ export default function InRoom({
   const [requestingPlay, setRequestingPlay] = useState(false);
 
   useEffect(() => {
+    if (!isConnectedToRoom) return;
     const reqPlSt = () => {
-      console.log("requesting players status");
+      // console.log("requesting players status");
       setAwaitingRoomStatus(true);
       clientSocket.send({
         type: 'request-players-status'
@@ -81,21 +83,21 @@ export default function InRoom({
     }
     reqPlSt();
 
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey) {
-        reqPlSt();
-      }
-    }
+    // const handler = (e: KeyboardEvent) => {
+    //   if (e.ctrlKey) {
+    //     reqPlSt();
+    //   }
+    // }
 
-    addEventListener('keydown', handler);
+    // addEventListener('keydown', handler);
 
-    return () => removeEventListener('keydown', handler);
-  }, []);
+    // return () => removeEventListener('keydown', handler);
+  }, [isConnectedToRoom]);
 
   // Join room if not joined yet
   useEffect(() => {
     if (store.socketConnData.get().connectedToRoom !== name) {
-      console.log('requesting join room');
+      // console.log('requesting join room');
       clientSocket.send({
         type: 'join-room',
         name,
@@ -129,7 +131,7 @@ export default function InRoom({
           store.state.set({id: 'Lobby'});
           break;
         case 'players-status':
-          console.log("updating players status");
+          // console.log("updating players status");
           setAwaitingRoomStatus(false);
           setWhiteAvailable(!msg.w);
           setBlackAvailable(!msg.b);
@@ -159,11 +161,11 @@ export default function InRoom({
     }
   });
 
-  console.log(
-    "Is in room ", connData.connectedToRoom === name,
-    "Staying in room ", !leaving,
-    "room status up to date", !awaitingRoomStatus
-  )
+  // console.log(
+  //   "Is in room ", isConnectedToRoom,
+  //   "Staying in room ", !leaving,
+  //   "room status up to date", !awaitingRoomStatus
+  // )
 
   return <>
     <Modal opened={leaveDlgOpened} onClose={leaveDlgClose} withCloseButton={false}>
@@ -181,7 +183,7 @@ export default function InRoom({
       </Stack>
     </Modal>
     {
-      connData.connectedToRoom === name && !leaving && !awaitingRoomStatus
+      isConnectedToRoom && !leaving && !awaitingRoomStatus
       ? <AppShell
         padding="md"
         header={{ height: 60 }}
