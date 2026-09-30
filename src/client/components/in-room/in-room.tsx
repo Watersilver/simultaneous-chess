@@ -72,6 +72,7 @@ export default function InRoom({
   const [requestingPlay, setRequestingPlay] = useState(false);
 
   useEffect(() => {
+    console.log("requesting players status");
     setAwaitingRoomStatus(true);
     clientSocket.send({
       type: 'request-players-status'
@@ -115,6 +116,7 @@ export default function InRoom({
           store.state.set({id: 'Lobby'});
           break;
         case 'players-status':
+          console.log("updating players status");
           setAwaitingRoomStatus(false);
           setWhiteAvailable(!msg.w);
           setBlackAvailable(!msg.b);
