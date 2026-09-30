@@ -22,7 +22,9 @@ export default function RoomCreator({
     if (res.status === 'ok' && CreateRoomSuccessSchema.validate(res.data)) {
       if (player) {
         store.autoRequestPlayInRoom.set(name);
+        console.log('is player');
       }
+      console.log('Create success');
       onRoomCreateSuccess?.(name);
       clear();
     }

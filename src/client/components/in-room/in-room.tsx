@@ -81,6 +81,7 @@ export default function InRoom({
   // Join room if not joined yet
   useEffect(() => {
     if (store.socketConnData.get().connectedToRoom !== name) {
+      console.log('requesting join room');
       clientSocket.send({
         type: 'join-room',
         name,
@@ -142,6 +143,12 @@ export default function InRoom({
       }
     }
   });
+
+  console.log(
+    "Is in room ", connData.connectedToRoom === name,
+    "Staying in room ", !leaving,
+    "room status up to date", !awaitingRoomStatus
+  )
 
   return <>
     <Modal opened={leaveDlgOpened} onClose={leaveDlgClose} withCloseButton={false}>

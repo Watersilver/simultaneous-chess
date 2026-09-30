@@ -40,7 +40,10 @@ function App() {
               <MatchSelection/>
             </>
             : state.id === "CreatingRoom"
-            ? <RoomCreator onRoomCreateSuccess={(roomName: string) => store.state.set({id: 'InRoom', name: roomName})} />
+            ? <RoomCreator onRoomCreateSuccess={(roomName: string) => {
+              console.log('setting state to InRoom');
+              store.state.set({id: 'InRoom', name: roomName});
+            }} />
             : <div>Why?? How!?</div>
           }
         </Container>

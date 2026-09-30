@@ -1,4 +1,4 @@
-.square {
+.square.player {
   transition: 0.05s;
   &:hover, &.selected {
     /* backdrop-filter: contrast(200%); */

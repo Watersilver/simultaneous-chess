@@ -16,6 +16,8 @@ import whiteKnight from "../../assets/chess/WhiteKnight.png";
 import whitePawn from "../../assets/chess/WhitePawn.png";
 import whiteQueen from "../../assets/chess/WhiteQueen.png";
 import whiteRook from "../../assets/chess/WhiteRook.png";
+import useObservableState from "../../hooks/useObservableState";
+import store from "../../store";
 
 const pieceImgs: {[type in PieceType]: {[colour in 'b' | 'w']: string}} = {
   '': {w: whitePawn, b: blackPawn},
@@ -142,6 +144,8 @@ export default function Chessboard({
 }: {
   data: Position
 }) {
+  const [connData] = useObservableState(store.socketConnData);
+  const role = connData.colour ?? "spectator";
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [w, h] = useResizeObserver(container);
   const min = Math.min(w, h);
@@ -196,11 +200,12 @@ export default function Chessboard({
             return <Box
               key={square}
               id={square}
-              className={styles.square}
+              className={styles.square + (role === 'spectator' ? " " + styles.player : "")}
               style={{
                 // outline: 'solid blue 1px'
               }}
               onMouseEnter={() => {
+                if (role === 'spectator') return;
                 setPieces(p => {
                   const newP: typeof p = [...p];
                   newP[0].coords = square;
