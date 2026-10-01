@@ -1,7 +1,7 @@
-import { Box, Image } from "@mantine/core";
+import { Box, Image, Loader } from "@mantine/core";
 import { PieceType, ChessPosition, SquareCoordinates } from "../../../both/Notation";
 import useResizeObserver from "../../hooks/useResizeObserver";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./chessboard.module.css"
 import board from "../../assets/chess/Board.png";
 import blackBishop from "../../assets/chess/BlackBishop.png";
@@ -18,6 +18,11 @@ import whiteQueen from "../../assets/chess/WhiteQueen.png";
 import whiteRook from "../../assets/chess/WhiteRook.png";
 import useObservableState from "../../hooks/useObservableState";
 import store from "../../store";
+import Game from "../../../both/Game";
+import clientSocket from "../../sockets/clientSocket";
+import useMessageListener from "../../hooks/useMessageListener";
+import getInitialChessPosition from "../../../both/getInitialChessPosition";
+import { notifications } from "@mantine/notifications";
 
 const pieceImgs: {[type in PieceType]: {[colour in 'b' | 'w']: string}} = {
   '': {w: whitePawn, b: blackPawn},
@@ -99,6 +104,8 @@ export default function Chessboard() {
   const min = Math.min(w, h);
   const boardSize = min * (1 - 1/9.05);
   const pieceSize = boardSize / 8;
+  const initialUpdate = useRef(false);
+  const [outOfSync, setOutOfSync] = useState(true);
 
   const perspectiveSquares = [...squares];
   if (role === 'black') {
@@ -107,12 +114,85 @@ export default function Chessboard() {
 
   const [selected, setSelected] = useState<SquareCoordinates>();
 
+  const [game] = useState(() => new Game());
   // Reset board
   useEffect(() => {
     store.chessPos.reset();
+    store.history.set([]);
+  }, []);
+  // Ask for initi state
+  useEffect(() => {
+    clientSocket.send({type: 'request-game-state'});
   }, []);
 
-  return <Box
+  useMessageListener(clientSocket, {
+    onMessage: msg => {
+      switch (msg.type) {
+        case 'new-turn':
+          if (!initialUpdate.current) {
+            const missingIds: number[] = [];
+            for (let i = 1; i < msg.turn.id; i++) {
+              if (!game.turns.some(t => t.id === i)) {
+                missingIds.push(i);
+              }
+            }
+            if (missingIds.length > 0) {
+              setOutOfSync(true);
+              clientSocket.send({
+                type: 'request-sync',
+                lastTurnId: game.turns.at(-1)?.id ?? 0
+              })
+            } else {
+              game.queueMove(msg.turn.w, 'w');
+              game.queueMove(msg.turn.b, 'b');
+              game.resolveQueuedMoves();
+              store.chessPos.set([...game.pos]);
+              store.history.set([...game.turns]);
+            }
+          }
+          break;
+          case 'game-state':
+            game.pos = msg.pos;
+            game.turns = msg.turns;
+            store.chessPos.set([...game.pos]);
+            store.history.set([...game.turns]);
+            setOutOfSync(false);
+            break;
+          case 'sync':
+            game.pos = getInitialChessPosition();
+            game.turns = [];
+            for (const turn of msg.turns) {
+              game.queueMove(turn.w, 'w');
+              game.queueMove(turn.b, 'b');
+              game.resolveQueuedMoves();
+            }
+            store.chessPos.set([...game.pos]);
+            store.history.set([...game.turns]);
+            setOutOfSync(false);
+            break;
+          case 'sync-error':
+            setOutOfSync(true);
+            notifications.show({message: msg.reason});
+            clientSocket.send({type: 'request-game-state'})
+            break;
+          case 'game-state-req-error':
+            notifications.show({message: msg.reason});
+            setTimeout(() => clientSocket.send({type: 'request-game-state'}), 5000);
+            break;
+          case 'queue-move-error':
+            notifications.show({message: msg.reason});
+            break;
+      }
+    }
+  });
+
+  // TODO: Show legal moves on mouseover and or selected square
+  // useEffect(() => {
+  // }, [selected, mouseover])
+
+  return outOfSync
+  ? <Loader />
+  : <Box
     style={{
       position: 'relative',
       boxSizing: 'border-box',
@@ -174,20 +254,20 @@ export default function Chessboard() {
                 if (role === 'spectator') return;
 
                 if (!selected) {
-                  if (pieces.some(p => p.coords === square)) {
-                    console.log('selected', square);
+                  if (pieces.some(p => p.coords === square && p.colour === role[0])) {
                     setSelected(square);
                   } else {
                     setSelected(undefined);
                   }
                 } else {
-                  console.log('moving', selected, 'to', square);
-                  const pos = [...store.chessPos.get()];
-                  pos.forEach(p => {
-                    if (p.coords === selected) {
-                      p.coords = square;
-                    }
-                  });
+                  if (game.isMoveLegal({f: selected, t: square}, role === 'black' ? 'b' : 'w')) {
+                    clientSocket.send({
+                      type: 'queue-move',
+                      from: selected,
+                      to: square,
+                      lastTurnId: game.turns.at(-1)?.id ?? 0
+                    })
+                  }
                   setSelected(undefined);
                 }
               }}

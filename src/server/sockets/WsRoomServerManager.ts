@@ -50,6 +50,10 @@ type ServerSettings<ServerMsg, ClientMsg> = {
    * If not provided, String() is used for outgoing message serialisation
    */
   serialise?: (msg: ServerMsg) => BufferLike;
+
+  onRoomCreated?: (roomName: string) => void;
+
+  onRoomDeleted?: (roomName: string) => void;
 }
 
 type SocketState = {
@@ -317,6 +321,7 @@ export default class WsRoomServerManager<
     }
     if (!this.rooms[name]) {
       this.rooms[name] = [];
+      this.settings?.onRoomCreated?.(name);
     }
     this.rooms[name].push(ws);
   }
@@ -332,6 +337,7 @@ export default class WsRoomServerManager<
             rs.splice(i, 1);
             if (rs.length === 0) {
               delete this.rooms[res.room];
+              this.settings?.onRoomDeleted?.(res.room);
             }
           }
         }

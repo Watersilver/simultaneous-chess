@@ -3,6 +3,7 @@ import server from '../server.js';
 import WsRoomServerManager from './WsRoomServerManager.js';
 import { ClientMsgSchema, ServerMsg } from '../../both/protocol.js';
 import DataAccess from '../DataAccess.js';
+import Game from '../../both/Game.js';
 
 
 // healpers
@@ -41,6 +42,8 @@ const leaveRoom = (ws: WebSocket, sm: WsRoomServerManager<any, any, any>) => {
 }
 
 
+const games: {[roomName: string]: Game} = {}
+
 const wsServer = new WsRoomServerManager(() => {
   return new WebSocketServer({
     server,
@@ -49,8 +52,123 @@ const wsServer = new WsRoomServerManager(() => {
 }, {
   serialise: (msg: ServerMsg) => JSON.stringify(msg),
   deserialise: msg => ClientMsgSchema.parse(JSON.parse(msg.data.toString('utf8'))),
+  onRoomCreated: name => games[name] = new Game(),
+  onRoomDeleted: name => delete games[name],
   messageHandler: (msg, ws, sm) => {
     switch (msg.type) {
+      case 'queue-move': {
+        const s = sm.getSocketState(ws);
+        if (s?.room) {
+          const room = DataAccess.getRoom(s.room);
+          let player: 'w' | 'b' | null = null;
+          if (room?.whiteId === s.id) {
+            player = 'w';
+          } else if (room?.blackId === s.id) {
+            player = 'b';
+          } else {
+            // Respond that request wasn't made by player
+            sm.send(ws, {
+              type: 'queue-move-error',
+              reason: 'Not a player'
+            });
+            break;
+          }
+          const game = games[s.room];
+          if (game) {
+            if (msg.lastTurnId !== game.getLastTurnId()) {
+              // Respond that request was out of sync
+              sm.send(ws, {
+                type: 'queue-move-error',
+                reason: 'outdated'
+              });
+            } else {
+              const move = {f: msg.from, t: msg.to};
+              if (!game.isMoveLegal(move, player)) {
+                // Respond that requested move was illegal
+                sm.send(ws, {
+                  type: 'queue-move-error',
+                  reason: 'illegal move'
+                });
+              } else {
+                game.queueMove(move, player);
+                if (game.areBothPlayersMovesCommited()) {
+                  game.resolveQueuedMoves();
+                  const lastTurn = game.turns.at(-1);
+                  if (lastTurn) {
+                    // Broadcast to all in room the new position
+                    sm.send(sm.getSocketsInRoom(s.room), {
+                      type: 'new-turn',
+                      turn: lastTurn
+                    });
+                  } else {
+                    console.warn("There is no turn after queued move resolution, for some reason.");
+                  }
+                }
+                // else {
+                //   // Let client know that we are waiting for opponent to commit
+                // } // ...or not. who cares?
+              }
+            }
+          }
+        } else {
+          sm.send(ws, {
+            type: 'queue-move-error',
+            reason: 'Not in room'
+          });
+        }
+      }
+      break;
+      case 'request-game-state': {
+        const s = sm.getSocketState(ws);
+        if (s?.room) {
+          const game = games[s.room];
+          if (game) {
+            sm.send(ws, {
+              type: 'game-state',
+              pos: game.pos,
+              turns: game.turns
+            });
+          }
+        } else {
+          sm.send(ws, {
+            type: 'game-state-req-error',
+            reason: 'Not in room'
+          });
+        }
+      }
+      break;
+      case 'request-sync': {
+        const s = sm.getSocketState(ws);
+        if (s?.room) {
+          const game = games[s.room];
+          if (game) {
+            if (
+              game.turns.some(t => t.id === msg.lastTurnId)
+              && (!msg.missingIds || msg.missingIds.every(id => game.turns.some(t => t.id == id)))
+            ) {
+              const turns = game.turns.filter(t => {
+                if (t.id > msg.lastTurnId) return true;
+                return msg.missingIds?.some(id => t.id === id);
+              });
+              sm.send(ws, {
+                type: 'sync',
+                turns
+              });
+            } else {
+              sm.send(ws, {
+                type: 'sync-error',
+                reason: 'Invalid id'
+              });
+            }
+          }
+        } else {
+          sm.send(ws, {
+            type: 'sync-error',
+            reason: 'Not in room'
+          });
+        }
+      }
+      break;
       case 'request-players-status': {
         const s = sm.getSocketState(ws);
         if (s?.room) {

@@ -1,11 +1,18 @@
+import getInitialChessPosition from "../both/getInitialChessPosition.js";
+import { ChessPosition, Move, Turn } from "../both/Notation.js";
 import { ReadonlyDeep } from "../both/ReadonlyDeep.js";
 
-type RoomData = {
+type RoomDataInit = {
   name: string;
+  private: boolean;
+}
+
+type RoomData = RoomDataInit & {
   whiteId?: number;
   blackId?: number;
   people: number;
-  private: boolean;
+  turns: Turn[];
+  pos: ChessPosition;
 };
 
 type RoomPropEntry = NonNullable<{
@@ -30,11 +37,16 @@ export default class DataAccess {
     return DataAccess.rooms.some(room => room.name === roomName);
   }
 
-  static createRoom(data: RoomData) {
+  static createRoom(data: RoomDataInit) {
     if (DataAccess.doesRoomExist(data.name)) {
       return 'exists';
     }
-    DataAccess.rooms.push(data);
+    DataAccess.rooms.push({
+      ...data,
+      pos: getInitialChessPosition(),
+      turns: [],
+      people: 0
+    });
     return 'success';
   }
 

@@ -25,7 +25,7 @@ app.get("/rooms", (_, res) => {
 app.post("/rooms/create", (req, res) => {
   try {
     const json = CreateRoomRequestSchema.parse(req.body);
-    const result = DataAccess.createRoom({...json, people: 0});
+    const result = DataAccess.createRoom({...json});
     if (result === 'exists') {
       const errRes: ReqError = {
         type: 'create room',

@@ -1,14 +1,7 @@
 import * as z from "zod"
+import { ChessPositionSchema, SquareCoordinatesSchema, TurnSchema } from "./Notation.js";
 
 export const ServerMsgSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('rooms-list'),
-    roomsList: z.array(z.object({
-      name: z.string(),
-      viewers: z.number(),
-      players: z.number()
-    }))
-  }),
   z.object({
     type: z.literal('join-room-fail'),
     roomName: z.string(),
@@ -42,15 +35,37 @@ export const ServerMsgSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('request-play-fail'),
     reason: z.enum(["No room for another player", 'Dunno'])
+  }),
+  z.object({
+    type: z.literal('queue-move-error'),
+    reason: z.enum(['Not a player', 'Not in room', 'outdated', 'illegal move'])
+  }),
+  z.object({
+    type: z.literal('new-turn'),
+    turn: TurnSchema
+  }),
+  z.object({
+    type: z.literal('game-state'),
+    pos: ChessPositionSchema,
+    turns: z.array(TurnSchema)
+  }),
+  z.object({
+    type: z.literal('sync'),
+    turns: z.array(TurnSchema)
+  }),
+  z.object({
+    type: z.literal('game-state-req-error'),
+    reason: z.enum(['Not in room', 'Dunno'])
+  }),
+  z.object({
+    type: z.literal('sync-error'),
+    reason: z.enum(['Not in room', 'Invalid id', 'Dunno'])
   })
 ]);
 
 export type ServerMsg = z.infer<typeof ServerMsgSchema>;
 
 export const ClientMsgSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('request-rooms')
-  }),
   z.object({
     type: z.literal('request-players-status')
   }),
@@ -65,6 +80,20 @@ export const ClientMsgSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('request-play'),
     colour: z.enum(['black', 'white'])
+  }),
+  z.object({
+    type: z.literal('queue-move'),
+    from: SquareCoordinatesSchema,
+    to: SquareCoordinatesSchema,
+    lastTurnId: z.number()
+  }),
+  z.object({
+    type: z.literal('request-game-state')
+  }),
+  z.object({
+    type: z.literal('request-sync'),
+    lastTurnId: z.number(),
+    missingIds: z.optional(z.array(z.number()))
   })
 ]);
 
