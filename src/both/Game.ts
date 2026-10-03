@@ -1,5 +1,3 @@
-// TODO: Castling doesn't work and neither does en passant. Fuck.
-
 import getInitialChessPosition from "./getInitialChessPosition.js";
 import { Move, PieceState, SquareCoordinates, Turn } from "./Notation.js";
 
@@ -41,6 +39,13 @@ class Game {
   private threatenedByWhite: SquareCoordinates[] = [];
   private threatenedByBlack: SquareCoordinates[] = [];
 
+  reset() {
+    this.threatenedByWhite = [];
+    this.threatenedByBlack = [];
+    this.pos = getInitialChessPosition();
+    this.turns = [];
+  }
+
   /**
    * @param returnType valid returns move piece can make, threatened includes squares covered by other pieces. Default is `'valid'`
    */
@@ -63,9 +68,11 @@ class Game {
     switch (piece.type) {
       case "":
         const direction = piece.colour === 'b' ? -1 : 1;
-        const forward = Game.squares[coords[0] + direction]?.[coords[1]];
+        let forward = Game.squares[coords[0] + direction]?.[coords[1]];
         if (forward && !this.alivePos.some(p => p.coords === forward)) {
           vSquares.push(forward);
+        } else {
+          forward = undefined;
         }
         const forwardL = Game.squares[coords[0] + direction]?.[coords[1] - 1];
         if (forwardL) {
@@ -225,8 +232,8 @@ class Game {
         if (!piece.moved && pc) {
           // Right side
           const rRookSq = this.alivePos.find(p => !p.moved && p.type === "R" && (
-            (piece.colour === 'w' && piece.coords === 'h1')
-            || (piece.colour === 'b' && piece.coords === 'h8')
+            (piece.colour === 'w' && p.coords === 'h1')
+            || (piece.colour === 'b' && p.coords === 'h8')
           ))?.coords;
           if (rRookSq) {
             const kingNumCoords = Game.findCoords(pc);
@@ -236,15 +243,21 @@ class Game {
             const r2 = Game.squares[r2c[0]]?.[r2c[1]];
             if (
               // Squares king traverses must be empty
-              !this.alivePos.some(
+              this.alivePos.every(
                 p => p.coords
                 && p.coords !== r1
                 && p.coords !== r2
               )
               // Squares king traverses and is on must be not threatened by enemy
               && (
-                (piece.colour === 'w' && !this.threatenedByBlack.some(sq => sq === r1 || sq === r2 || sq === piece.coords))
-                || (piece.colour === 'b' && !this.threatenedByWhite.some(sq => sq === r1 || sq === r2 || sq === piece.coords))
+                (
+                  piece.colour === 'w'
+                  && !this.threatenedByBlack.some(sq => sq === r1 || sq === r2 || sq === piece.coords)
+                )
+                || (
+                  piece.colour === 'b'
+                  && !this.threatenedByWhite.some(sq => sq === r1 || sq === r2 || sq === piece.coords)
+                )
               )
             ) {
               vSquares.push(rRookSq);
@@ -252,8 +265,8 @@ class Game {
           }
           // Left side
           const lRookSq = this.alivePos.find(p => !p.moved && p.type === "R" && (
-            (piece.colour === 'w' && piece.coords === 'a1')
-            || (piece.colour === 'b' && piece.coords === 'a8')
+            (piece.colour === 'w' && p.coords === 'a1')
+            || (piece.colour === 'b' && p.coords === 'a8')
           ))?.coords;
           if (lRookSq) {
             const kingNumCoords = Game.findCoords(pc);
@@ -263,7 +276,7 @@ class Game {
             const l2 = Game.squares[l2c[0]]?.[l2c[1]];
             if (
               // Squares king traverses must be empty
-              !this.alivePos.some(
+              this.alivePos.every(
                 p => p.coords
                 && p.coords !== l1
                 && p.coords !== l2
@@ -375,12 +388,12 @@ class Game {
       } else if (moves.b.t === 'a8' && this.alivePos.some(p => p.coords === 'a8')) {
         const rook = this.alivePos.find(p => p.coords === 'a8');
         if (rook) {
-          rook.coords = 'c8';
+          rook.coords = 'd8';
           rook.moved = true;
         }
-        blackPiece.coords = 'b8';
+        blackPiece.coords = 'c8';
       } else {
-        blackPiece.coords = moves.w.t;
+        blackPiece.coords = moves.b.t;
       }
     }
 
@@ -393,37 +406,35 @@ class Game {
     });
 
     // Check for en passant
-    if (!capturedWhite) {
-      if (
-        // Pawn
-        blackPiece?.type === ''
-        // Changed file
-        && moves.b.f[0] !== moves.b.t[0]
-        // Landed on en passant vulnerable spot
-        && this.alivePos.some(p => {
-          return p.skipped === moves.b.t
-        })
-      ) {
-        capturedWhite = this.alivePos.find(p => {
-          return p.skipped === moves.b.t
-        });
-      }
+    let enPassantCaptureW: PieceState | undefined;
+    if (
+      // Pawn
+      blackPiece?.type === ''
+      // Changed file
+      && moves.b.f[0] !== moves.b.t[0]
+      // Landed on en passant vulnerable spot
+      && this.alivePos.some(p => {
+        return p.skipped === moves.b.t
+      })
+    ) {
+      enPassantCaptureW = this.alivePos.find(p => {
+        return p.skipped === moves.b.t
+      });
     }
-    if (!capturedBlack) {
-      if (
-        // Pawn
-        whitePiece?.type === ''
-        // Changed file
-        && moves.w.f[0] !== moves.w.t[0]
-        // Landed on en passant vulnerable spot
-        && this.alivePos.some(p => {
-          return p.skipped === moves.w.t
-        })
-      ) {
-        capturedBlack = this.alivePos.find(p => {
-          return p.skipped === moves.w.t
-        });
-      }
+    let enPassantCaptureB: PieceState | undefined;
+    if (
+      // Pawn
+      whitePiece?.type === ''
+      // Changed file
+      && moves.w.f[0] !== moves.w.t[0]
+      // Landed on en passant vulnerable spot
+      && this.alivePos.some(p => {
+        return p.skipped === moves.w.t
+      })
+    ) {
+      enPassantCaptureB = this.alivePos.find(p => {
+        return p.skipped === moves.w.t
+      });
     }
 
     // Move pieces
@@ -433,13 +444,29 @@ class Game {
       }
       if (whitePiece.type === '') {
         // Mark/unmark skipped square
-        whitePiece.skipped = undefined
+        const cf = Game.findCoords(moves.w.f);
+        const ct = Game.findCoords(moves.w.t);
+        if (cf[0] - ct[0] < -1) {
+          whitePiece.skipped = Game.squares[cf[0] + 1]?.[cf[1]];
+        } else {
+          whitePiece.skipped = undefined;
+        }
       }
       whitePiece.moved = true;
     }
     if (blackPiece) {
       if (blackPiece.type !== 'K') {
         blackPiece.coords = moves.b.t;
+      }
+      if (blackPiece.type === '') {
+        // Mark/unmark skipped square
+        const cf = Game.findCoords(moves.b.f);
+        const ct = Game.findCoords(moves.b.t);
+        if (cf[0] - ct[0] > 1) {
+          blackPiece.skipped = Game.squares[cf[0] - 1]?.[cf[1]];
+        } else {
+          blackPiece.skipped = undefined;
+        }
       }
       blackPiece.moved = true;
     }
@@ -452,8 +479,14 @@ class Game {
     if (capturedWhite) {
       capturedWhite.captured = true;
     }
+    if (enPassantCaptureW) {
+      enPassantCaptureW.captured = true;
+    }
     if (capturedBlack) {
       capturedBlack.captured = true;
+    }
+    if (enPassantCaptureB) {
+      enPassantCaptureB.captured = true;
     }
 
     // Promote pawns

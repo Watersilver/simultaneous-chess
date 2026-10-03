@@ -102,6 +102,8 @@ export default function Chessboard() {
   const [connData] = useObservableState(store.socketConnData);
   const role = connData.colour ?? "spectator";
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
+  const [contw, conth] = useResizeObserver(root);
   const [w, h] = useResizeObserver(container);
   const min = Math.min(w, h);
   const boardSize = min * (1 - 1/9.05);
@@ -149,7 +151,7 @@ export default function Chessboard() {
               clientSocket.send({
                 type: 'request-sync',
                 lastTurnId: game.turns.at(-1)?.id ?? 0
-              })
+              });
             } else {
               game.queueMove(msg.turn.w, 'w');
               game.queueMove(msg.turn.b, 'b');
@@ -162,8 +164,12 @@ export default function Chessboard() {
           case 'game-state':
             setSelected(undefined);
             setTarget(undefined);
-            game.pos = msg.pos;
-            game.turns = msg.turns;
+            game.reset();
+            for (const turn of msg.turns) {
+              game.queueMove(turn.w, 'w');
+              game.queueMove(turn.b, 'b');
+              game.resolveQueuedMoves();
+            }
             store.chessPos.set([...game.pos]);
             store.history.set([...game.turns]);
             setOutOfSync(false);
@@ -171,8 +177,7 @@ export default function Chessboard() {
           case 'sync':
             setSelected(undefined);
             setTarget(undefined);
-            game.pos = getInitialChessPosition();
-            game.turns = [];
+            game.reset();
             for (const turn of msg.turns) {
               game.queueMove(turn.w, 'w');
               game.queueMove(turn.b, 'b');
@@ -237,6 +242,7 @@ export default function Chessboard() {
       userSelect: 'none'
     }}
     id="pieces-container"
+    ref={el => setRoot(el)}
   >
     {
       pieces.map((piece, i) => {
@@ -246,7 +252,7 @@ export default function Chessboard() {
           coords={piece.coords}
           type={piece.type}
           colour={piece.colour}
-          repositionTrigger={role !== 'black'}
+          repositionTrigger={role + contw + conth}
           captured={piece.captured}
         />
       })
