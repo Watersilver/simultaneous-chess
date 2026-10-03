@@ -35,6 +35,8 @@ export const TurnSchema = z.object({
   w: MoveSchema,
   /** Black `Move` */
   b: MoveSchema,
+  /** True when move is castling */
+  castling: z.optional(z.boolean()),
   /** End without victor is stalemate */
   end: z.optional(z.boolean()),
   /** End without victor is stalemate */
@@ -48,10 +50,13 @@ export type Turn = z.infer<typeof TurnSchema>;
 
 export const PieceStateSchema = z.object({
   coords: z.optional(SquareCoordinatesSchema),
+  /** For pawns when they make an initial two square advance, mark the skipped square here. It is vulnerable to an en passant. */
+  skipped: z.optional(SquareCoordinatesSchema),
   type: PieceTypeSchema,
   colour: z.enum(["w", "b"]),
   captured: z.optional(z.boolean()),
-  promoted: z.optional(z.boolean())
+  promoted: z.optional(z.boolean()),
+  moved: z.optional(z.boolean())
 });
 
 export type PieceState = z.infer<typeof PieceStateSchema>;

@@ -38,7 +38,7 @@ export const ServerMsgSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('queue-move-error'),
-    reason: z.enum(['Not a player', 'Not in room', 'outdated', 'illegal move'])
+    reason: z.enum(['Not a player', 'Not in room', 'outdated', 'illegal move', 'Game over'])
   }),
   z.object({
     type: z.literal('new-turn'),

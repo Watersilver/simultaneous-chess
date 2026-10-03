@@ -49,13 +49,15 @@ function Piece({
   colour,
   size,
   coords,
-  repositionTrigger
+  repositionTrigger,
+  captured
 }: {
   type: PieceType;
   colour: 'w' | 'b';
   size: number;
   coords?: SquareCoordinates;
   repositionTrigger: unknown;
+  captured?: boolean;
 }) {
   const [x, setX] = useState(0);
   const [y, setY] = useState(0);
@@ -85,11 +87,11 @@ function Piece({
     style={{
       position: 'absolute',
       top: 0, left: 0,
-      width: size,
-      height: size,
+      width: captured ? 0 : size,
+      height: captured ? 0 : size,
       imageRendering: 'pixelated',
       transform: `translate(${x}px, ${y}px)`,
-      transition: 'transform 0.05s'
+      transition: captured ? 'transform 0.1s, width 0.1s 0.2s, height 0.1s 0.2s' : 'transform 0.1s'
     }}
     src={pieceImgs[type][colour]}
   />
@@ -113,6 +115,10 @@ export default function Chessboard() {
   }
 
   const [selected, setSelected] = useState<SquareCoordinates>();
+  const [hovered, setHovered] = useState<SquareCoordinates>();
+  const [target, setTarget] = useState<SquareCoordinates>();
+  const [selectedValidMoves, setSelectedValidMoves] = useState<SquareCoordinates[]>([]);
+  const [hoveredValidMoves, setHoveredValidMoves] = useState<SquareCoordinates[]>([]);
 
   const [game] = useState(() => new Game());
   // Reset board
@@ -129,6 +135,8 @@ export default function Chessboard() {
     onMessage: msg => {
       switch (msg.type) {
         case 'new-turn':
+          setSelected(undefined);
+          setTarget(undefined);
           if (!initialUpdate.current) {
             const missingIds: number[] = [];
             for (let i = 1; i < msg.turn.id; i++) {
@@ -152,6 +160,8 @@ export default function Chessboard() {
           }
           break;
           case 'game-state':
+            setSelected(undefined);
+            setTarget(undefined);
             game.pos = msg.pos;
             game.turns = msg.turns;
             store.chessPos.set([...game.pos]);
@@ -159,6 +169,8 @@ export default function Chessboard() {
             setOutOfSync(false);
             break;
           case 'sync':
+            setSelected(undefined);
+            setTarget(undefined);
             game.pos = getInitialChessPosition();
             game.turns = [];
             for (const turn of msg.turns) {
@@ -180,15 +192,39 @@ export default function Chessboard() {
             setTimeout(() => clientSocket.send({type: 'request-game-state'}), 5000);
             break;
           case 'queue-move-error':
+            setSelected(undefined);
+            setTarget(undefined);
             notifications.show({message: msg.reason});
             break;
       }
     }
   });
 
-  // TODO: Show legal moves on mouseover and or selected square
-  // useEffect(() => {
-  // }, [selected, mouseover])
+  // Show legal moves on hovered and selected square
+  useEffect(() => {
+    if (!selected) {
+      setSelectedValidMoves([]);
+      return;
+    }
+    const p = game.alivePos.find(p => p.coords === selected);
+    if (!p) {
+      setSelectedValidMoves([]);
+      return;
+    }
+    setSelectedValidMoves(game.getValidSquares(p));
+  }, [selected]);
+  useEffect(() => {
+    if (!hovered) {
+      setHoveredValidMoves([]);
+      return;
+    }
+    const p = game.alivePos.find(p => p.coords === hovered);
+    if (!p) {
+      setHoveredValidMoves([]);
+      return;
+    }
+    setHoveredValidMoves(game.getValidSquares(p));
+  }, [hovered]);
 
   return outOfSync
   ? <Loader />
@@ -211,6 +247,7 @@ export default function Chessboard() {
           type={piece.type}
           colour={piece.colour}
           repositionTrigger={role !== 'black'}
+          captured={piece.captured}
         />
       })
     }
@@ -243,18 +280,25 @@ export default function Chessboard() {
                 styles.square
                 + (role === 'spectator' ? "" : (" " + styles.player))
                 + (selected !== square ? "" : (" " + styles.selected))
+                + (target !== square ? "" : (" " + styles.target))
+                + (!selectedValidMoves.concat(hoveredValidMoves).some(s => s === square) ? "" : (" " + styles.controlled))
               }
               style={{
                 // outline: 'solid blue 1px'
               }}
               onMouseEnter={() => {
                 if (role === 'spectator') return;
+                setHovered(square);
+              }}
+              onMouseLeave={() => {
+                setHovered(undefined);
               }}
               onClick={() => {
                 if (role === 'spectator') return;
+                if (target) return;
 
                 if (!selected) {
-                  if (pieces.some(p => p.coords === square && p.colour === role[0])) {
+                  if (pieces.filter(p => !p.captured).some(p => p.coords === square && p.colour === role[0])) {
                     setSelected(square);
                   } else {
                     setSelected(undefined);
@@ -266,9 +310,15 @@ export default function Chessboard() {
                       from: selected,
                       to: square,
                       lastTurnId: game.turns.at(-1)?.id ?? 0
-                    })
+                    });
+                    setTarget(square);
+                  } else {
+                    if (pieces.filter(p => !p.captured).some(p => p.coords === square && p.colour === role[0])) {
+                      setSelected(square);
+                    } else {
+                      setSelected(undefined);
+                    }
                   }
-                  setSelected(undefined);
                 }
               }}
             >

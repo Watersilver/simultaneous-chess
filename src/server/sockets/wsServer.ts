@@ -75,7 +75,12 @@ const wsServer = new WsRoomServerManager(() => {
           }
           const game = games[s.room];
           if (game) {
-            if (msg.lastTurnId !== game.getLastTurnId()) {
+            if (game.isGameOver()) {
+              sm.send(ws, {
+                type: 'queue-move-error',
+                reason: 'Game over'
+              });
+            } else if (msg.lastTurnId !== game.getLastTurnId()) {
               // Respond that request was out of sync
               sm.send(ws, {
                 type: 'queue-move-error',
