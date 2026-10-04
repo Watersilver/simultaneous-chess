@@ -49,6 +49,7 @@ export const TurnSchema = z.object({
   bCaptures: z.optional(z.array(PieceTypeSchema)),
   wCheck: z.optional(z.boolean()),
   bCheck: z.optional(z.boolean()),
+  collided: z.optional(z.boolean()),
   id: z.number()
 });
 

@@ -13,7 +13,7 @@ const pieceTypeMap: {[type in PieceType]: string} = {
 };
 
 function TurnDatum({t, col}: {t: Turn, col: 'w' | 'b'}) {
-  const captures = col === 'w' ? t.wCaptures : t.bCaptures;
+  const captures = col === 'w' ? t.bCaptures : t.wCaptures;
   const enPassant = col === 'w' ? t.wEnPassant : t.bEnPassant;
   const castling = col === 'w' ? t.wCastling : t.bCastling;
   const check = col === 'w' ? t.wCheck : t.bCheck;
@@ -25,7 +25,7 @@ function TurnDatum({t, col}: {t: Turn, col: 'w' | 'b'}) {
       : <Text>{t[col].f + "->" + t[col].t}</Text>
     }
     {enPassant ? <Text>en passant!</Text> : null}
-    {captures?.length ? captures.map((c, i) => <Text key = {i}>captured {pieceTypeMap[c]}</Text>) : null}
+    {captures?.length ? captures.map((c, i) => <Text key = {i}>{t.collided ? "collided with" : "captured"} {pieceTypeMap[c]}</Text>) : null}
     {check ? <Text>in check</Text> : null}
     {!t.end ? null : victor === col ? "winner!" : victor ? "loser" : 'draw'}
   </>;

@@ -47,6 +47,7 @@ class Game {
   }
 
   private checkIfPinned = true;
+  private ignoreCheck = false;
   /**
    * @param returnType valid returns squares piece can move to,
    * threatened includes squares inaccessible by king. Default is `'valid'`
@@ -59,19 +60,40 @@ class Game {
     const tSquares: SquareCoordinates[] = [];
     const coords = Game.findCoords(piece.coords);
     if (
-      piece.type !== 'K'
+      !this.ignoreCheck
+      && returnType === 'valid'
+      && piece.type !== 'K'
       && this.isCheck(piece.colour)
     ) {
-      // TODO: check if I can interpose or capture attacking piece
-      // Step 1: count how many pieces are threatening king.
-      // If only one piece is threatening, continue
-      // If there are more, a single piece's move
-      // cannot save the king, so return empty array
-      // Step 2: get my valid squares as if check
-      // wasn't there
-      // Step 3: intersect my valid squares with
-      // the squares of the checking enemy and return
-      // enemy squares include their valid squares and their position
+      // Check if I can interpose or capture attacking piece
+      const king = this.alivePos.find(p => p.type === 'K' && p.colour === piece.colour);
+      if (king?.coords) {
+        // Step 1: count how many pieces are threatening king.
+        // If only one piece is threatening, continue
+        // If there are more, a single piece's move
+        // cannot save the king, so return empty array
+        this.ignoreCheck = true;
+        const threats = this.alivePos.filter(p => {
+          return this.getValidSquares(p).some(s => king.coords === s);
+        });
+        this.ignoreCheck = false;
+        if (threats.length > 1) {
+          return vSquares;
+        }
+        // Step 2: get my valid squares as if check
+        // wasn't there
+        this.ignoreCheck = true;
+        const sq = this.getValidSquares(piece);
+        this.ignoreCheck = false;
+        // Step 3: intersect my valid squares with
+        // the squares of the checking enemy and return;
+        // enemy squares include their valid squares and their position
+        const enemy = threats[0];
+        if (enemy?.coords) {
+          const path = Game.getPath({f: enemy.coords, t: king.coords});
+          vSquares = sq.filter(square => path.includes(square) || square === enemy.coords);
+        }
+      }
 
       return vSquares;
     }
@@ -335,7 +357,7 @@ class Game {
             if (other.colour === otherCol && (other.type === "R" || other.type === "Q" || other.type === "B")) {
               const sq = this.getValidSquares(other);
               if (sq.some(s => piece.coords === s) && sq.some(s => king.coords === s)) {
-                vSquares = vSquares.filter(square => sq.includes(square) || other.coords);
+                vSquares = vSquares.filter(square => sq.includes(square) || square === other.coords);
                 break;
               }
             }
@@ -460,16 +482,15 @@ class Game {
       }
     }
 
-    const collided = false;
-    // // Check if collided (careful to make sure castling doesn't collide)
-    // // Step 1: get paths for both moves
-    // const wPath = wCastling ? [] : Game.getPath(moves.w);
-    // const bPath = bCastling ? [] : Game.getPath(moves.b);
-    // // Step 2: if either piece ends its move in the path of the other, collide
-    // const collided = wPath.some(s => s === moves.b.t) || bPath.some(s => s === moves.w.t);
-    // // Step 3: if collision occurs, other captures fail because piece got intercepted
-    // // Make sure that king doesn't die if attacking piece is captured
-    // // (done by making king immortal for now)
+    // Check if collided (careful to make sure castling doesn't collide)
+    // Step 1: get paths for both moves
+    const wPath = wCastling ? [] : Game.getPath(moves.w);
+    const bPath = bCastling ? [] : Game.getPath(moves.b);
+    // Step 2: if either piece ends its move in the path of the other, collide
+    const collided = wPath.some(s => s === moves.b.t) || bPath.some(s => s === moves.w.t);
+    // Step 3: if collision occurs, other captures fail because piece got intercepted
+    // Make sure that king doesn't die if attacking piece is captured
+    // (done by making king immortal for now)
 
     // Keep track of captured pieces here
     // Let kings be immortal for now
@@ -593,13 +614,13 @@ class Game {
     // Check if game is over
     let wKing = this.alivePos.find(p => p.colour === 'w' && p.type === "K");
     if (wKing) {
-      if (this.isCheck('w') && this.getValidSquares(wKing).length === 0) {
+      if (this.isCheck('w') && this.alivePos.every(p => p.colour === 'w' && this.getValidSquares(p).length === 0)) {
         wKing = undefined;
       }
     }
     let bKing = this.alivePos.find(p => p.colour === 'b' && p.type === "K");
     if (bKing) {
-      if (this.isCheck('b') && this.getValidSquares(bKing).length === 0) {
+      if (this.isCheck('b') && this.alivePos.every(p => p.colour === 'b' && this.getValidSquares(p).length === 0)) {
         bKing = undefined;
       }
     }
@@ -630,6 +651,7 @@ class Game {
         .concat(enPassantCaptureB ? [enPassantCaptureB.type] : []),
       wEnPassant: !!enPassantCaptureW, bEnPassant: !!enPassantCaptureB,
       wCheck: this.isCheck('w'), bCheck: this.isCheck('b'),
+      collided,
       end,
       victor:
         end
