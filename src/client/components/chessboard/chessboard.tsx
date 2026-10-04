@@ -158,6 +158,19 @@ export default function Chessboard() {
               game.resolveQueuedMoves();
               store.chessPos.set([...game.pos]);
               store.history.set([...game.turns]);
+              if (msg.turn.end) {
+                if (msg.turn.victor) {
+                  notifications.show({message: "Checkmate! Winner: " + msg.turn.victor});
+                } else {
+                  notifications.show({message: 'Stalemate'});
+                }
+              }
+              if (msg.turn.bCheck) {
+                notifications.show({message: 'Black king in check'});
+              }
+              if (msg.turn.wCheck) {
+                notifications.show({message: 'White king in check'});
+              }
             }
           }
           break;

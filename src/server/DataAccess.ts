@@ -1,5 +1,5 @@
 import getInitialChessPosition from "../both/getInitialChessPosition.js";
-import { ChessPosition, Move, Turn } from "../both/Notation.js";
+import { ChessPosition, Turn } from "../both/Notation.js";
 import { ReadonlyDeep } from "../both/ReadonlyDeep.js";
 
 type RoomDataInit = {
@@ -23,6 +23,13 @@ export default class DataAccess {
   private constructor() {}
 
   private static rooms: RoomData[] = [];
+
+  static destroyRoom(roomName: string) {
+    const i = DataAccess.rooms.findIndex(r => r.name === roomName);
+    if (i !== -1) {
+      DataAccess.rooms.splice(i, 1);
+    }
+  }
 
   static getRooms(includePrivate?: boolean): ReadonlyDeep<typeof DataAccess.rooms> {
     if (includePrivate) return DataAccess.rooms;

@@ -46,13 +46,15 @@ class Game {
     this.turns = [];
   }
 
+  private checkIfPinned = true;
   /**
-   * @param returnType valid returns move piece can make, threatened includes squares covered by other pieces. Default is `'valid'`
+   * @param returnType valid returns squares piece can move to,
+   * threatened includes squares inaccessible by king. Default is `'valid'`
    */
   getValidSquares(piece: PieceState, returnType: 'valid' | 'threatened' = 'valid') {
-    if (!piece.coords) return [];
+    if (!piece.coords || piece.captured) return [];
     /** Valid squares */
-    const vSquares: SquareCoordinates[] = [];
+    let vSquares: SquareCoordinates[] = [];
     /** Threatened squares */
     const tSquares: SquareCoordinates[] = [];
     const coords = Game.findCoords(piece.coords);
@@ -60,7 +62,34 @@ class Game {
       piece.type !== 'K'
       && this.isCheck(piece.colour)
     ) {
+      // TODO: check if I can interpose or capture attacking piece
+      // Step 1: count how many pieces are threatening king.
+      // If only one piece is threatening, continue
+      // If there are more, a single piece's move
+      // cannot save the king, so return empty array
+      // Step 2: get my valid squares as if check
+      // wasn't there
+      // Step 3: intersect my valid squares with
+      // the squares of the checking enemy and return
+      // enemy squares include their valid squares and their position
+
       return vSquares;
+    }
+    let markedKingCaptured: 'b' | 'w' | null = null;
+    if (returnType === 'threatened' && piece.type !== 'K') {
+      for (const p of this.pos) {
+        // Mark the enemy king as captured so when marking squares we will
+        // go through the king as if he's not there.
+        // Since we're marking the squares that threaten kings, he can't
+        // use himself as a shield.
+        if (p.type === 'K' && piece.colour !== p.colour) {
+          if (!p.captured) {
+            p.captured = true;
+            markedKingCaptured = p.colour;
+            break;
+          }
+        }
+      }
     }
     let r = coords[0], f = coords[1];
     let dir = 0;
@@ -294,8 +323,36 @@ class Game {
         break;
     }
     if (returnType === 'valid') {
+      
+      if (piece.type !== 'K') {
+        const king = this.alivePos.find(p => p.type === 'K' && p.colour === piece.colour);
+        if (this.checkIfPinned && king) {
+          this.checkIfPinned = false;
+          piece.captured = true;
+          // Check if pinned
+          const otherCol = piece.colour === 'b' ? 'w' : 'b';
+          for (const other of this.alivePos) {
+            if (other.colour === otherCol && (other.type === "R" || other.type === "Q" || other.type === "B")) {
+              const sq = this.getValidSquares(other);
+              if (sq.some(s => piece.coords === s) && sq.some(s => king.coords === s)) {
+                vSquares = vSquares.filter(square => sq.includes(square) || other.coords);
+                break;
+              }
+            }
+          }
+          piece.captured = false;
+          this.checkIfPinned = true;
+        }
+      }
+
       return vSquares;
     } else {
+      if (markedKingCaptured) {
+        const king = this.pos.find(p => p.type === 'K' && p.colour === markedKingCaptured);
+        if (king) {
+          king.captured = false;
+        }
+      }
       return vSquares.concat(tSquares);
     }
   }
@@ -358,12 +415,14 @@ class Game {
     });
 
     // Kings move first to avoid a check auto becoming checkmate
+    let wCastling = false
     if (whitePiece?.type === 'K') {
       if (moves.w.t === 'h1' && this.alivePos.some(p => p.coords === 'h1')) {
         const rook = this.alivePos.find(p => p.coords === 'h1');
         if (rook) {
           rook.coords = 'f1';
           rook.moved = true;
+          wCastling = true;
         }
         whitePiece.coords = 'g1';
       } else if (moves.w.t === 'a1' && this.alivePos.some(p => p.coords === 'a1')) {
@@ -371,18 +430,21 @@ class Game {
         if (rook) {
           rook.coords = 'd1';
           rook.moved = true;
+          wCastling = true;
         }
         whitePiece.coords = 'c1';
       } else {
         whitePiece.coords = moves.w.t;
       }
     }
+    let bCastling = false
     if (blackPiece?.type === 'K') {
       if (moves.b.t === 'h8' && this.alivePos.some(p => p.coords === 'h8')) {
         const rook = this.alivePos.find(p => p.coords === 'h8');
         if (rook) {
           rook.coords = 'f8';
           rook.moved = true;
+          bCastling = true;
         }
         blackPiece.coords = 'g8';
       } else if (moves.b.t === 'a8' && this.alivePos.some(p => p.coords === 'a8')) {
@@ -390,6 +452,7 @@ class Game {
         if (rook) {
           rook.coords = 'd8';
           rook.moved = true;
+          bCastling = true;
         }
         blackPiece.coords = 'c8';
       } else {
@@ -397,19 +460,34 @@ class Game {
       }
     }
 
+    const collided = false;
+    // // Check if collided (careful to make sure castling doesn't collide)
+    // // Step 1: get paths for both moves
+    // const wPath = wCastling ? [] : Game.getPath(moves.w);
+    // const bPath = bCastling ? [] : Game.getPath(moves.b);
+    // // Step 2: if either piece ends its move in the path of the other, collide
+    // const collided = wPath.some(s => s === moves.b.t) || bPath.some(s => s === moves.w.t);
+    // // Step 3: if collision occurs, other captures fail because piece got intercepted
+    // // Make sure that king doesn't die if attacking piece is captured
+    // // (done by making king immortal for now)
+
     // Keep track of captured pieces here
-    let capturedWhite = this.alivePos.find(p => {
-      return p.colour === 'b' && p.coords === moves.w.t
+    // Let kings be immortal for now
+    // to deal with intercepted and captured
+    // pieces that attack the king
+    let capturedWhite = collided ? whitePiece : this.alivePos.find(p => {
+      return p.type !== "K" && p.colour === 'b' && p.coords === moves.w.t
     });
-    let capturedBlack = this.alivePos.find(p => {
-      return p.colour === 'w' && p.coords === moves.b.t
+    let capturedBlack = collided ? blackPiece : this.alivePos.find(p => {
+      return p.type !== "K" && p.colour === 'w' && p.coords === moves.b.t
     });
 
     // Check for en passant
     let enPassantCaptureW: PieceState | undefined;
     if (
+      !collided
       // Pawn
-      blackPiece?.type === ''
+      && blackPiece?.type === ''
       // Changed file
       && moves.b.f[0] !== moves.b.t[0]
       // Landed on en passant vulnerable spot
@@ -423,8 +501,9 @@ class Game {
     }
     let enPassantCaptureB: PieceState | undefined;
     if (
+      !collided
       // Pawn
-      whitePiece?.type === ''
+      && whitePiece?.type === ''
       // Changed file
       && moves.w.f[0] !== moves.w.t[0]
       // Landed on en passant vulnerable spot
@@ -511,11 +590,63 @@ class Game {
     this.threatenedByWhite = wThreats;
     this.threatenedByBlack = bThreats;
 
-    // TODO: Check if game is over
+    // Check if game is over
+    let wKing = this.alivePos.find(p => p.colour === 'w' && p.type === "K");
+    if (wKing) {
+      if (this.isCheck('w') && this.getValidSquares(wKing).length === 0) {
+        wKing = undefined;
+      }
+    }
+    let bKing = this.alivePos.find(p => p.colour === 'b' && p.type === "K");
+    if (bKing) {
+      if (this.isCheck('b') && this.getValidSquares(bKing).length === 0) {
+        bKing = undefined;
+      }
+    }
+    let end = !wKing || !bKing;
+    if (wKing && bKing) {
+      const wSq: SquareCoordinates[] = [];
+      const bSq: SquareCoordinates[] = [];
+      this.alivePos.forEach(p => {
+        const squares = this.getValidSquares(p);
+        if (p.colour === 'w') {
+          wSq.push(...squares);
+        } else {
+          bSq.push(...squares);
+        }
+      });
+      if (!end) {
+        end = wSq.length === 0 || bSq.length === 0;
+      }
+    }
+
     this.turns.push({
-      w: moves.w,
-      b: moves.b,
-      id: this.getLastTurnId() + 1
+      w: moves.w, b: moves.b,
+      id: this.getLastTurnId() + 1,
+      wCastling, bCastling,
+      wCaptures: (capturedWhite ? [capturedWhite.type] : [])
+        .concat(enPassantCaptureW ? [enPassantCaptureW.type] : []),
+      bCaptures: (capturedBlack ? [capturedBlack.type] : [])
+        .concat(enPassantCaptureB ? [enPassantCaptureB.type] : []),
+      wEnPassant: !!enPassantCaptureW, bEnPassant: !!enPassantCaptureB,
+      wCheck: this.isCheck('w'), bCheck: this.isCheck('b'),
+      end,
+      victor:
+        end
+        ? (
+          wKing
+          ? (
+            bKing
+            ? undefined
+            : 'white'
+          )
+          : (
+            bKing
+            ? 'black'
+            : undefined
+          )
+        )
+        : undefined
     });
   }
 
@@ -532,6 +663,128 @@ class Game {
 
   getVictor() {
     return this.turns.at(-1)?.victor ?? null;
+  }
+
+  static getPath(move: Move) {
+    const from = Game.findCoords(move.f);
+    const to = Game.findCoords(move.t);
+    const path: SquareCoordinates[] = [];
+    if (from[0] == to[0]) {
+      if (from[1] > to[1]) {
+        let i = 1;
+        while (true) {
+          const sq = Game.squares[from[0]]?.[from[1] - i];
+          if (sq === move.t) {
+            break;
+          } else if (sq) {
+            path.push(sq);
+            i++;
+          } else {
+            break;
+          }
+        }
+      } else {
+        let i = 1;
+        while (true) {
+          const sq = Game.squares[from[0]]?.[from[1] + i];
+          if (sq === move.t) {
+            break;
+          } else if (sq) {
+            path.push(sq);
+            i++;
+          } else {
+            break;
+          }
+        }
+      }
+    } else if (from[1] === to[1]) {
+      if (from[0] > to[0]) {
+        let i = 1;
+        while (true) {
+          const sq = Game.squares[from[0] - i]?.[from[1]];
+          if (sq === move.t) {
+            break;
+          } else if (sq) {
+            path.push(sq);
+            i++;
+          } else {
+            break;
+          }
+        }
+      } else {
+        let i = 1;
+        while (true) {
+          const sq = Game.squares[from[0] + i]?.[from[1]];
+          if (sq === move.t) {
+            break;
+          } else if (sq) {
+            path.push(sq);
+            i++;
+          } else {
+            break;
+          }
+        }
+      }
+    } else if (Math.abs(from[0] - to[0]) === Math.abs(from[1] - to[1])) {
+      if (from[0] > to[0]) {
+        if (from[1] > to[1]) {
+          let i = 1;
+          while (true) {
+            const sq = Game.squares[from[0] - i]?.[from[1] - i];
+            if (sq === move.t) {
+              break;
+            } else if (sq) {
+              path.push(sq);
+              i++;
+            } else {
+              break;
+            }
+          }
+        } else {
+          let i = 1;
+          while (true) {
+            const sq = Game.squares[from[0] - i]?.[from[1] + i];
+            if (sq === move.t) {
+              break;
+            } else if (sq) {
+              path.push(sq);
+              i++;
+            } else {
+              break;
+            }
+          }
+        }
+      } else {
+        if (from[1] > to[1]) {
+          let i = 1;
+          while (true) {
+            const sq = Game.squares[from[0] + i]?.[from[1] - i];
+            if (sq === move.t) {
+              break;
+            } else if (sq) {
+              path.push(sq);
+              i++;
+            } else {
+              break;
+            }
+          }
+        } else {
+          let i = 1;
+          while (true) {
+            const sq = Game.squares[from[0] + i]?.[from[1] + i];
+            if (sq === move.t) {
+              break;
+            } else if (sq) {
+              path.push(sq);
+              i++;
+            } else {
+              break;
+            }
+          }
+        }
+      }
+    }
+    return path;
   }
 }
 

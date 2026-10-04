@@ -28,6 +28,14 @@ const leaveRoom = (ws: WebSocket, sm: WsRoomServerManager<any, any, any>) => {
       }
       DataAccess.setRoomProps(state.room, ['people', room.people - 1]);
       // console.log('removed one person ', DataAccess.getRoom(state.room));
+
+      const roomName = state.room;
+      setTimeout(() => {
+        if (DataAccess.getRoom(roomName)?.people === 0) {
+          DataAccess.destroyRoom(roomName);
+        }
+      }, 1000);
+
       if (plStChanged) {
         sm.send(sm.getSocketsInRoom(room.name)?.filter(w => w !== ws), {
           type: 'players-status',
@@ -309,6 +317,9 @@ const wsServer = new WsRoomServerManager(() => {
       case 'leave-room':
         const s = sm.getSocketState(ws);
         leaveRoom(ws, sm);
+        if (s?.room) {
+          DataAccess.destroyRoom(s.room);
+        }
         sm.send(ws, {
           type: 'leave-room-response',
           roomName: s?.room

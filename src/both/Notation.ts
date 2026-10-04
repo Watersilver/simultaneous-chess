@@ -35,14 +35,20 @@ export const TurnSchema = z.object({
   w: MoveSchema,
   /** Black `Move` */
   b: MoveSchema,
-  /** True when move is castling */
-  castling: z.optional(z.boolean()),
   /** End without victor is stalemate */
   end: z.optional(z.boolean()),
   /** End without victor is stalemate */
   victor: z.optional(z.enum(['white', 'black'])),
   /** Might be useful to describe why stalemate happened, or anything else */
   comment: z.optional(z.string()),
+  wEnPassant: z.optional(z.boolean()),
+  bEnPassant: z.optional(z.boolean()),
+  wCastling: z.optional(z.boolean()),
+  bCastling: z.optional(z.boolean()),
+  wCaptures: z.optional(z.array(PieceTypeSchema)),
+  bCaptures: z.optional(z.array(PieceTypeSchema)),
+  wCheck: z.optional(z.boolean()),
+  bCheck: z.optional(z.boolean()),
   id: z.number()
 });
 
