@@ -31,7 +31,8 @@ const store = {
     colour: null as 'white' | 'black' | null
   }),
   history: new ObservableState<(Turn & {description?: string})[]>([]),
-  chessPos: new ObservableState<ChessPosition>(getInitialChessPosition())
+  chessPos: new ObservableState<ChessPosition>(getInitialChessPosition()),
+  rulesModal: new ObservableState(false)
 }
 
 export default store;

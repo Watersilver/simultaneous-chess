@@ -232,6 +232,14 @@ export default function InRoom({
           {/* <ScrollArea>
             <MatchHistory />
           </ScrollArea> */}
+          <Button
+            variant="outline"
+            style={{borderRadius: 0}}
+            fullWidth
+            onClick={() => store.rulesModal.set(true)}
+          >
+            Rules
+          </Button>
           <Box
             style={{
               overflowY: 'auto'
