@@ -2,8 +2,8 @@ import { ChessPosition } from "./Notation.js";
 
 const getInitialChessPosition: () => ChessPosition = () => [
   // White Pieces
-  { type: "K", colour: "w", coords: 'e1' },
-  { type: "Q", colour: "w", coords: 'd1' },
+  { type: "K", colour: "w", coords: 'd1' },
+  { type: "Q", colour: "w", coords: 'e1' },
   { type: "R", colour: "w", coords: 'a1' },
   { type: "R", colour: "w", coords: 'h1' },
   { type: "B", colour: "w", coords: 'c1' },
@@ -20,8 +20,8 @@ const getInitialChessPosition: () => ChessPosition = () => [
   { type: "", colour: "w", coords: 'g2' },
 
   // Black Pieces
-  { type: "K", colour: "b", coords: 'e8' },
-  { type: "Q", colour: "b", coords: 'd8' },
+  { type: "K", colour: "b", coords: 'd8' },
+  { type: "Q", colour: "b", coords: 'e8' },
   { type: "R", colour: "b", coords: 'a8' },
   { type: "R", colour: "b", coords: 'h8' },
   { type: "B", colour: "b", coords: 'c8' },
