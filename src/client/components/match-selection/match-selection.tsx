@@ -1,4 +1,4 @@
-import { Button, Center, Container, Divider, Flex, Loader, TextInput, Notification, Stack, Title } from "@mantine/core";
+import { Button, Center, Container, Divider, Flex, Loader, TextInput, Notification, Stack, Title, Box } from "@mantine/core";
 import { useState } from "react";
 import MatchList from "../match-list/match-list";
 import useMessageListener from "../../hooks/useMessageListener";
@@ -44,15 +44,13 @@ export default function MatchSelection() {
   };
 
   return <>
-    <Center>
+    {/* <Center> */}
       <Stack>
         {
           loading
           ? <Loader />
           : <Container strategy="grid">
-            <Title
-              style={{position: 'absolute', top: 0}}
-            >
+            <Title>
               Simultaneous chess
             </Title>
             <Flex gap={8}>
@@ -73,6 +71,6 @@ export default function MatchSelection() {
           </Container>
         }
       </Stack>
-    </Center>
+    {/* </Center> */}
   </>;
 }

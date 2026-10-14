@@ -1,4 +1,4 @@
-import { AppShell, Burger, Button, Group, Loader, Modal, Title, Text, Stack, Center, Box, SimpleGrid, ScrollArea } from '@mantine/core';
+import { AppShell, Burger, Button, Group, Loader, Modal, Title, Text, Stack, Center, Box, SimpleGrid, ScrollArea, Divider } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import useObservableState from '../../hooks/useObservableState';
 import store from '../../store';
@@ -201,8 +201,6 @@ export default function InRoom({
               hiddenFrom="sm"
               size="sm"
             />
-
-            <Title order={3}>{name}</Title>
             <Box style={{flexGrow: 1}}><RoleDisplay
               joinable={whiteAvailable || blackAvailable}
               onJoinRequest={() => {
@@ -240,6 +238,15 @@ export default function InRoom({
           >
             Rules
           </Button>
+          <Divider></Divider>
+          <Text
+            fw={700}
+            style={{
+              overflowWrap: "break-word",
+              textAlign: 'center'
+            }}
+          >Room: {name}</Text>
+          <Divider></Divider>
           <Box
             style={{
               overflowY: 'auto'

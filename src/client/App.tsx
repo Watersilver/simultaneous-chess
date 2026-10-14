@@ -23,30 +23,40 @@ function App() {
           left: 0,
           top: 0,
           right: 0,
-          bottom: 0
+          bottom: 0,
+          display: 'grid',
+          gridTemplateRows: "50px 1fr"
         }}
         strategy="grid"
       >
-        {
-          state.id === "Loading"
-          ? <Center>
-            <Loader />
-          </Center>
-          : state.id === "Lobby"
-          ? <>
-            <Button
-              style={{position: 'absolute', right: 8, top: 8}}
-              onClick={() => store.state.set({id: 'CreatingRoom'})}
-            >New room</Button>
-            <MatchSelection/>
-          </>
-          : state.id === "CreatingRoom"
-          ? <RoomCreator onRoomCreateSuccess={(roomName: string) => {
-            // console.log('setting state to InRoom');
-            store.state.set({id: 'InRoom', name: roomName});
-          }} />
-          : <div>Why?? How!?</div>
-        }
+        <Container/>
+        <Container
+          style={{
+            height: "100%"
+          }}
+          strategy="grid"
+        >
+          {
+            state.id === "Loading"
+            ? <Center>
+              <Loader />
+            </Center>
+            : state.id === "Lobby"
+            ? <>
+              <Button
+                style={{position: 'absolute', right: 8, top: 8}}
+                onClick={() => store.state.set({id: 'CreatingRoom'})}
+              >New room</Button>
+              <MatchSelection/>
+            </>
+            : state.id === "CreatingRoom"
+            ? <RoomCreator onRoomCreateSuccess={(roomName: string) => {
+              // console.log('setting state to InRoom');
+              store.state.set({id: 'InRoom', name: roomName});
+            }} />
+            : <div>Why?? How!?</div>
+          }
+        </Container>
       </Container>
     }
     {
