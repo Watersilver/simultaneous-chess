@@ -63,15 +63,3 @@ clientSocket.addEventListener('open', async () => {
 // });
 
 export default clientSocket
-
-const ass = (msg: any) => {
-  switch (msg.type) {
-    case 'join-room-fail':
-      notifications.show({message: 'test me'})
-      break;
-  }
-}
-
-clientSocket.addEventListener('message', ass)
-clientSocket.removeEventListener('message', ass)
-clientSocket.addEventListener('message', ass)

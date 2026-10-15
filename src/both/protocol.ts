@@ -41,6 +41,9 @@ export const ServerMsgSchema = z.discriminatedUnion('type', [
     reason: z.enum(['Not a player', 'Not in room', 'outdated', 'illegal move', 'Game over'])
   }),
   z.object({
+    type: z.literal('opponent-ready')
+  }),
+  z.object({
     type: z.literal('new-turn'),
     turn: TurnSchema
   }),

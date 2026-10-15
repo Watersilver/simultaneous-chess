@@ -117,9 +117,22 @@ const wsServer = new WsRoomServerManager(() => {
                     console.warn("There is no turn after queued move resolution, for some reason.");
                   }
                 }
-                // else {
-                //   // Let client know that we are waiting for opponent to commit
-                // } // ...or not. who cares?
+                else {
+                  // Let client know that we are waiting for opponent to commit
+                  if (room.blackId && room.whiteId) {
+                    let opponent
+                    if (s.id === room.blackId) {
+                      opponent = sm.getSocketById(room.whiteId)
+                    } else {
+                      opponent = sm.getSocketById(room.blackId)
+                    }
+                    if (opponent) {
+                      sm.send(opponent, {
+                        type: 'opponent-ready'
+                      })
+                    }
+                  }
+                }
               }
             }
           }

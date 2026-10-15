@@ -116,11 +116,13 @@ export default function Chessboard() {
     perspectiveSquares.reverse();
   }
 
+  const [toBeMoved, setToBeMoved] = useState<SquareCoordinates>();
   const [selected, setSelected] = useState<SquareCoordinates>();
   const [hovered, setHovered] = useState<SquareCoordinates>();
   const [target, setTarget] = useState<SquareCoordinates>();
   const [selectedValidMoves, setSelectedValidMoves] = useState<SquareCoordinates[]>([]);
   const [hoveredValidMoves, setHoveredValidMoves] = useState<SquareCoordinates[]>([]);
+  const awaitOpponentReadiness = useRef(true);
 
   const [game] = useState(() => new Game());
   // Reset board
@@ -136,9 +138,16 @@ export default function Chessboard() {
   useMessageListener(clientSocket, {
     onMessage: msg => {
       switch (msg.type) {
+        case 'opponent-ready':
+          if (awaitOpponentReadiness.current === true) {
+            awaitOpponentReadiness.current = false;
+            notifications.show({message: "Your opponent is ready"});
+          }
+          break;
         case 'new-turn':
           setSelected(undefined);
           setTarget(undefined);
+          setToBeMoved(undefined);
           if (!initialUpdate.current) {
             const missingIds: number[] = [];
             for (let i = 1; i < msg.turn.id; i++) {
@@ -299,6 +308,7 @@ export default function Chessboard() {
                 styles.square
                 + (role === 'spectator' ? "" : (" " + styles.player))
                 + (selected !== square ? "" : (" " + styles.selected))
+                + (toBeMoved !== square ? "" : (" " + styles.selected))
                 + (target !== square ? "" : (" " + styles.target))
                 + (!selectedValidMoves.concat(hoveredValidMoves).some(s => s === square) ? "" : (" " + styles.controlled))
               }
@@ -314,7 +324,7 @@ export default function Chessboard() {
               }}
               onClick={() => {
                 if (role === 'spectator') return;
-                if (target) return;
+                // if (target) return;
 
                 if (!selected) {
                   if (pieces.filter(p => !p.captured).some(p => p.coords === square && p.colour === role[0])) {
@@ -330,6 +340,7 @@ export default function Chessboard() {
                       to: square,
                       lastTurnId: game.turns.at(-1)?.id ?? 0
                     });
+                    setToBeMoved(selected);
                     setTarget(square);
                   } else {
                     if (pieces.filter(p => !p.captured).some(p => p.coords === square && p.colour === role[0])) {

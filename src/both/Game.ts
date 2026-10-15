@@ -1,8 +1,13 @@
 import getInitialChessPosition from "./getInitialChessPosition.js";
-import { Move, PieceState, SquareCoordinates, Turn } from "./Notation.js";
+import { ChessPosition, Move, PieceState, SquareCoordinates, Turn } from "./Notation.js";
 
 class Game {
-  pos = getInitialChessPosition();
+  constructor() {
+    this.pos = getInitialChessPosition();
+    this.markThreatenedSquares();
+  }
+
+  pos: ChessPosition;
   get alivePos() {
     return this.pos.filter(p => !p.captured);
   }
@@ -39,11 +44,24 @@ class Game {
   private threatenedByWhite: SquareCoordinates[] = [];
   private threatenedByBlack: SquareCoordinates[] = [];
 
+  setPosition(pos: ChessPosition) {
+    this.pos = pos;
+    this.markThreatenedSquares();
+  }
+
   reset() {
-    this.threatenedByWhite = [];
-    this.threatenedByBlack = [];
-    this.pos = getInitialChessPosition();
+    this.setPosition(getInitialChessPosition());
     this.turns = [];
+  }
+
+  setTurns(turns: Turn[]) {
+    this.reset();
+    for (const turn of turns) {
+      this.resolveMoves({
+        w: turn.w,
+        b: turn.b
+      });
+    }
   }
 
   private checkIfPinned = true;
@@ -423,6 +441,29 @@ class Game {
     return this.turns[this.turns.length - 1]?.id ?? 0;
   }
 
+  markThreatenedSquares() {
+    this.threatenedByWhite = [];
+    this.threatenedByBlack = [];
+    const wThreats: SquareCoordinates[] = [];
+    const bThreats: SquareCoordinates[] = [];
+    this.alivePos.forEach(p => {
+      const squares = this.getValidSquares(p, 'threatened');
+      if (p.colour === 'w') {
+        wThreats.push(...squares);
+        if (p.type === "K" && p.coords) {
+          wThreats.push(p.coords);
+        }
+      } else {
+        bThreats.push(...squares);
+        if (p.type === "K" && p.coords) {
+          bThreats.push(p.coords);
+        }
+      }
+    });
+    this.threatenedByWhite = wThreats;
+    this.threatenedByBlack = bThreats;
+  }
+
   /** Only use for moves that you have made sure are legal */
   private resolveMoves(moves: {w: Move, b: Move}) {
     this.threatenedByWhite = [];
@@ -598,18 +639,7 @@ class Game {
     }
 
     // Mark threatened squares
-    const wThreats: SquareCoordinates[] = [];
-    const bThreats: SquareCoordinates[] = [];
-    this.alivePos.forEach(p => {
-      const squares = this.getValidSquares(p, 'threatened');
-      if (p.colour === 'w') {
-        wThreats.push(...squares);
-      } else {
-        bThreats.push(...squares);
-      }
-    });
-    this.threatenedByWhite = wThreats;
-    this.threatenedByBlack = bThreats;
+    this.markThreatenedSquares();
 
     // Check if game is over
     let wKing = this.alivePos.find(p => p.colour === 'w' && p.type === "K");

@@ -74,7 +74,7 @@ export default class WsRoomServerManager<
 > {
   private ServerCreator: WsConstructor<WS, IM, S>;
   private server?: S;
-  private wsToState = new WeakMap<InstanceType<WS>, {
+  private wsToState = new Map<InstanceType<WS>, {
     room?: string;
     awaitingPong?: boolean;
     id: number;
@@ -348,6 +348,15 @@ export default class WsRoomServerManager<
 
   getSocketState(ws: InstanceType<WS>): ReadonlyDeep<SocketState> | null {
     return this.wsToState.get(ws) ?? null;
+  }
+
+  getSocketById(id: number) {
+    for (const entry of this.wsToState) {
+      if (entry[1].id === id) {
+        return entry[0];
+      }
+    }
+    return null;
   }
 
   getSocketsInRoom(room: string) {
