@@ -372,10 +372,18 @@ class Game {
           // Check if pinned
           const otherCol = piece.colour === 'b' ? 'w' : 'b';
           for (const other of this.alivePos) {
-            if (other.colour === otherCol && (other.type === "R" || other.type === "Q" || other.type === "B")) {
+            if (
+              other.colour === otherCol
+              && (other.type === "R" || other.type === "Q" || other.type === "B")
+            ) {
               const sq = this.getValidSquares(other);
               if (sq.some(s => piece.coords === s) && sq.some(s => king.coords === s)) {
-                vSquares = vSquares.filter(square => sq.includes(square) || square === other.coords);
+                if (other.coords && king.coords) {
+                  const path = Game.getPath({f: other.coords, t: king.coords});
+                  vSquares = vSquares.filter(
+                    square => path.includes(square) || square === other.coords
+                  );
+                }
                 break;
               }
             }
@@ -717,6 +725,7 @@ class Game {
     return this.turns.at(-1)?.victor ?? null;
   }
 
+  /** Gets path between two squares, NOT including them */
   static getPath(move: Move) {
     const from = Game.findCoords(move.f);
     const to = Game.findCoords(move.t);
